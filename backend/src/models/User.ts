@@ -1,11 +1,16 @@
-import { db } from '../database/connection.js';
+import { initializeDatabase } from '../database/connection';
 import {
   User,
   CreateUserRequest,
   UpdateUserRequest,
   PaginationParams,
-} from '../types/database.js';
-import bcrypt from 'bcrypt';
+} from '../types/database';
+import bcrypt from 'bcryptjs';
+
+// Helper function to get database instance
+const getDatabase = () => {
+  return initializeDatabase();
+};
 
 export class UserModel {
   static async create(userData: CreateUserRequest): Promise<User> {
@@ -25,25 +30,25 @@ export class UserModel {
       userData.last_name || null,
     ];
     
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0];
   }
 
   static async findById(id: string): Promise<User | null> {
     const query = 'SELECT * FROM users WHERE id = $1 AND is_active = true';
-    const result = await db.query(query, [id]);
+    const result = await getDatabase().query(query, [id]);
     return result.rows[0] || null;
   }
 
   static async findByEmail(email: string): Promise<User | null> {
     const query = 'SELECT * FROM users WHERE email = $1 AND is_active = true';
-    const result = await db.query(query, [email]);
+    const result = await getDatabase().query(query, [email]);
     return result.rows[0] || null;
   }
 
   static async findByUsername(username: string): Promise<User | null> {
     const query = 'SELECT * FROM users WHERE username = $1 AND is_active = true';
-    const result = await db.query(query, [username]);
+    const result = await getDatabase().query(query, [username]);
     return result.rows[0] || null;
   }
 
@@ -79,24 +84,24 @@ export class UserModel {
       RETURNING *
     `;
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
   static async updateLastLogin(id: string): Promise<void> {
     const query = 'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1';
-    await db.query(query, [id]);
+    await getDatabase().query(query, [id]);
   }
 
   static async verifyEmail(id: string): Promise<void> {
     const query = 'UPDATE users SET email_verified = true WHERE id = $1';
-    await db.query(query, [id]);
+    await getDatabase().query(query, [id]);
   }
 
   static async changePassword(id: string, newPassword: string): Promise<void> {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const query = 'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2';
-    await db.query(query, [hashedPassword, id]);
+    await getDatabase().query(query, [hashedPassword, id]);
   }
 
   static async verifyPassword(user: User, password: string): Promise<boolean> {
@@ -105,7 +110,7 @@ export class UserModel {
 
   static async softDelete(id: string): Promise<void> {
     const query = 'UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1';
-    await db.query(query, [id]);
+    await getDatabase().query(query, [id]);
   }
 
   static async list(params: PaginationParams = {}): Promise<{ users: User[]; total: number }> {
@@ -113,7 +118,7 @@ export class UserModel {
     const offset = (page - 1) * limit;
 
     const countQuery = 'SELECT COUNT(*) FROM users WHERE is_active = true';
-    const countResult = await db.query(countQuery);
+    const countResult = await getDatabase().query(countQuery);
     const total = parseInt(countResult.rows[0].count);
 
     const query = `
@@ -125,7 +130,7 @@ export class UserModel {
       LIMIT $1 OFFSET $2
     `;
 
-    const result = await db.query(query, [limit, offset]);
+    const result = await getDatabase().query(query, [limit, offset]);
     return { users: result.rows, total };
   }
 
@@ -141,7 +146,7 @@ export class UserModel {
       WHERE is_active = true 
         AND (username ILIKE $1 OR email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)
     `;
-    const countResult = await db.query(countQuery, [searchPattern]);
+    const countResult = await getDatabase().query(countQuery, [searchPattern]);
     const total = parseInt(countResult.rows[0].count);
 
     const query = `
@@ -154,7 +159,7 @@ export class UserModel {
       LIMIT $2 OFFSET $3
     `;
 
-    const result = await db.query(query, [searchPattern, limit, offset]);
+    const result = await getDatabase().query(query, [searchPattern, limit, offset]);
     return { users: result.rows, total };
   }
 }

@@ -1,11 +1,16 @@
-import { db } from '../database/connection.js';
+import { initializeDatabase } from '../database/connection';
 import {
   Project,
   CreateProjectRequest,
   UpdateProjectRequest,
   ProjectQueryParams,
   ProjectStats,
-} from '../types/database.js';
+} from '../types/database';
+
+// Helper function to get database instance
+const getDatabase = () => {
+  return initializeDatabase();
+};
 
 export class ProjectModel {
   static async create(projectData: CreateProjectRequest, ownerId: string): Promise<Project> {
@@ -26,7 +31,7 @@ export class ProjectModel {
       projectData.settings || {},
     ];
     
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0];
   }
 
@@ -45,7 +50,7 @@ export class ProjectModel {
       values.push(userId);
     }
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
@@ -103,7 +108,7 @@ export class ProjectModel {
       RETURNING *
     `;
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
@@ -115,7 +120,7 @@ export class ProjectModel {
     }
 
     const query = 'DELETE FROM projects WHERE id = $1 AND owner_id = $2';
-    const result = await db.query(query, [id, userId]);
+    const result = await getDatabase().query(query, [id, userId]);
     return result.rowCount > 0;
   }
 
@@ -163,7 +168,7 @@ export class ProjectModel {
       FROM projects p
       ${whereClause}
     `;
-    const countResult = await db.query(countQuery, queryParams);
+    const countResult = await getDatabase().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
     // Data query
@@ -176,7 +181,7 @@ export class ProjectModel {
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
     
-    const result = await db.query(dataQuery, [...queryParams, limit, offset]);
+    const result = await getDatabase().query(dataQuery, [...queryParams, limit, offset]);
     return { projects: result.rows, total };
   }
 
@@ -184,7 +189,7 @@ export class ProjectModel {
     const query = `
       SELECT * FROM v_project_stats WHERE id = $1
     `;
-    const result = await db.query(query, [id]);
+    const result = await getDatabase().query(query, [id]);
     return result.rows[0] || null;
   }
 
@@ -206,7 +211,7 @@ export class ProjectModel {
       INNER JOIN project_collaborators pc ON p.id = pc.project_id
       WHERE pc.user_id = $1 AND p.owner_id != $1
     `;
-    const countResult = await db.query(countQuery, [userId]);
+    const countResult = await getDatabase().query(countQuery, [userId]);
     const total = parseInt(countResult.rows[0].count);
 
     const dataQuery = `
@@ -219,7 +224,7 @@ export class ProjectModel {
       LIMIT $2 OFFSET $3
     `;
 
-    const result = await db.query(dataQuery, [userId, limit, offset]);
+    const result = await getDatabase().query(dataQuery, [userId, limit, offset]);
     return { projects: result.rows, total };
   }
 }

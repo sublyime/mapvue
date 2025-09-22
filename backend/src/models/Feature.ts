@@ -1,11 +1,16 @@
-import { db } from '../database/connection.js';
+import { initializeDatabase } from '../database/connection';
 import {
   Feature,
   CreateFeatureRequest,
   UpdateFeatureRequest,
   FeatureQueryParams,
   BoundsQueryParams,
-} from '../types/database.js';
+} from '../types/database';
+
+// Helper function to get database instance
+const getDatabase = () => {
+  return initializeDatabase();
+};
 
 export class FeatureModel {
   static async create(featureData: CreateFeatureRequest, ownerId: string): Promise<Feature> {
@@ -30,7 +35,7 @@ export class FeatureModel {
       featureData.is_visible !== undefined ? featureData.is_visible : true,
     ];
     
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0];
   }
 
@@ -77,7 +82,7 @@ export class FeatureModel {
       `;
     }
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
@@ -133,7 +138,7 @@ export class FeatureModel {
                 properties, style, is_visible, created_at, updated_at
     `;
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
@@ -145,7 +150,7 @@ export class FeatureModel {
     }
 
     const query = 'DELETE FROM features WHERE id = $1 AND owner_id = $2';
-    const result = await db.query(query, [id, userId]);
+    const result = await getDatabase().query(query, [id, userId]);
     return result.rowCount > 0;
   }
 
@@ -208,7 +213,7 @@ export class FeatureModel {
       LEFT JOIN projects p ON l.project_id = p.id
       ${whereClause}
     `;
-    const countResult = await db.query(countQuery, queryParams);
+    const countResult = await getDatabase().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
     // Data query
@@ -226,7 +231,7 @@ export class FeatureModel {
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
     
-    const result = await db.query(dataQuery, [...queryParams, limit, offset]);
+    const result = await getDatabase().query(dataQuery, [...queryParams, limit, offset]);
     return { features: result.rows, total };
   }
 
@@ -278,7 +283,7 @@ export class FeatureModel {
                 properties, style, is_visible, created_at, updated_at
     `;
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows;
   }
 
@@ -288,7 +293,7 @@ export class FeatureModel {
     const placeholders = ids.map((_, index) => `$${index + 2}`).join(', ');
     const query = `DELETE FROM features WHERE owner_id = $1 AND id IN (${placeholders})`;
     
-    const result = await db.query(query, [userId, ...ids]);
+    const result = await getDatabase().query(query, [userId, ...ids]);
     return result.rowCount;
   }
 
@@ -299,7 +304,7 @@ export class FeatureModel {
       WHERE layer_id = $1 AND is_visible = true
     `;
     
-    const result = await db.query(query, [layerId]);
+    const result = await getDatabase().query(query, [layerId]);
     const extent = result.rows[0]?.extent;
     
     if (!extent) return null;

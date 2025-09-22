@@ -1,11 +1,16 @@
-import { db } from '../database/connection.js';
+import { initializeDatabase } from '../database/connection';
 import {
   Layer,
   CreateLayerRequest,
   UpdateLayerRequest,
   LayerQueryParams,
   LayerStats,
-} from '../types/database.js';
+} from '../types/database';
+
+// Helper function to get database instance
+const getDatabase = () => {
+  return initializeDatabase();
+};
 
 export class LayerModel {
   static async create(layerData: CreateLayerRequest, ownerId: string): Promise<Layer> {
@@ -37,7 +42,7 @@ export class LayerModel {
       layerData.is_public !== undefined ? layerData.is_public : false,
     ];
     
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0];
   }
 
@@ -69,7 +74,7 @@ export class LayerModel {
       `;
     }
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
@@ -143,7 +148,7 @@ export class LayerModel {
       RETURNING *
     `;
 
-    const result = await db.query(query, values);
+    const result = await getDatabase().query(query, values);
     return result.rows[0] || null;
   }
 
@@ -155,7 +160,7 @@ export class LayerModel {
     }
 
     const query = 'DELETE FROM layers WHERE id = $1 AND owner_id = $2';
-    const result = await db.query(query, [id, userId]);
+    const result = await getDatabase().query(query, [id, userId]);
     return result.rowCount > 0;
   }
 
@@ -209,7 +214,7 @@ export class LayerModel {
       LEFT JOIN projects p ON l.project_id = p.id
       ${whereClause}
     `;
-    const countResult = await db.query(countQuery, queryParams);
+    const countResult = await getDatabase().query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
     // Data query
@@ -223,7 +228,7 @@ export class LayerModel {
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
     
-    const result = await db.query(dataQuery, [...queryParams, limit, offset]);
+    const result = await getDatabase().query(dataQuery, [...queryParams, limit, offset]);
     return { layers: result.rows, total };
   }
 
@@ -236,7 +241,7 @@ export class LayerModel {
     const query = `
       SELECT * FROM v_layer_stats WHERE id = $1
     `;
-    const result = await db.query(query, [id]);
+    const result = await getDatabase().query(query, [id]);
     return result.rows[0] || null;
   }
 
@@ -247,7 +252,7 @@ export class LayerModel {
     }
 
     const query = 'UPDATE layers SET layer_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2';
-    const result = await db.query(query, [newOrder, layerId]);
+    const result = await getDatabase().query(query, [newOrder, layerId]);
     return result.rowCount > 0;
   }
 
@@ -264,7 +269,7 @@ export class LayerModel {
       RETURNING *
     `;
     
-    const result = await db.query(query, [layerId]);
+    const result = await getDatabase().query(query, [layerId]);
     return result.rows[0] || null;
   }
 }
