@@ -1,9 +1,20 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { query } from '../db';
+import { initializeDatabase } from '../database/connection';
 
 const router = Router();
+
+// Helper function to get database instance
+const getDatabase = () => {
+  return initializeDatabase();
+};
+
+// Helper function to execute queries
+const query = async (text: string, params?: any[]) => {
+  const db = getDatabase();
+  return await db.query(text, params);
+};
 
 // Register new user
 router.post('/register', async (req: Request, res: Response) => {

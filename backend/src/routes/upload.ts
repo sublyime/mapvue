@@ -2,9 +2,20 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
-import { query } from '../db';
+import { initializeDatabase } from '../database/connection';
 
 const router = Router();
+
+// Helper function to get database instance
+const getDatabase = () => {
+  return initializeDatabase();
+};
+
+// Helper function to execute queries
+const query = async (text: string, params?: any[]) => {
+  const db = getDatabase();
+  return await db.query(text, params);
+};
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({

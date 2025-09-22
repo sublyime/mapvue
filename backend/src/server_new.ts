@@ -7,7 +7,7 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 
 // Import database connection
-import { initializeDatabase } from './database/connection';
+import { initializeDatabase } from './database/connection.js';
 
 // Import routes
 import gisRoutes from './routes/gis';
@@ -49,13 +49,11 @@ async function initializeApp() {
     }
     
     console.log('✅ Database connection established successfully');
-    return true;
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
-    console.error('💡 PostgreSQL may not be installed or configured');
-    console.error('� See database/SETUP_INSTRUCTIONS.md for setup guide');
-    console.warn('⚠️  Starting server without database connection');
-    return false;
+    console.error('💡 Make sure PostgreSQL is running and database is set up');
+    console.error('🔧 Run: npm run db:setup to initialize the database');
+    process.exit(1);
   }
 }
 
@@ -109,12 +107,12 @@ app.get('/health', async (req, res) => {
       database: isHealthy ? 'connected' : 'disconnected'
     });
   } catch (error) {
-    res.json({
-      status: 'OK',
+    res.status(500).json({
+      status: 'ERROR',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      database: 'not_configured',
-      message: 'Server running without database - PostgreSQL setup required'
+      database: 'error',
+      error: 'Database connection failed'
     });
   }
 });
@@ -207,20 +205,14 @@ export { io };
 
 // Start server
 async function startServer() {
-  const dbConnected = await initializeApp();
+  await initializeApp();
   
   httpServer.listen(PORT, () => {
     console.log(`🚀 MapVue server running on port ${PORT}`);
     console.log(`📡 Socket.io enabled for real-time features`);
     console.log(`🌍 CORS enabled for: ${process.env.CORS_ORIGIN || "http://localhost:5173"}`);
     console.log(`🛡️  Security headers enabled`);
-    
-    if (dbConnected) {
-      console.log(`🗄️  Database: Connected and ready`);
-    } else {
-      console.log(`⚠️  Database: Not configured - see database/SETUP_INSTRUCTIONS.md`);
-    }
-    
+    console.log(`🗄️  Database: Connected and ready`);
     console.log(`📍 Health check: http://localhost:${PORT}/health`);
   });
 }

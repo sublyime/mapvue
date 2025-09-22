@@ -7,6 +7,9 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "db:setup": "powershell -ExecutionPolicy Bypass -File database/setup.ps1",
+    "db:setup-bash": "bash database/setup.sh",
+    "db:migrate": "psql -h localhost -U mapvue_user -d mapvue -f database/migrations/001_initial_schema.sql",
     "lint": "echo \"Add ESLint configuration if needed\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
