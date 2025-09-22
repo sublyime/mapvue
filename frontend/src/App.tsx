@@ -12,8 +12,10 @@ import { fromLonLat } from 'ol/proj';
 import GeoJSON from 'ol/format/GeoJSON';
 import KML from 'ol/format/KML';
 import GPX from 'ol/format/GPX';
-import { Pencil, Square, Minus, MousePointer, Edit, Upload, Download, FileText } from 'lucide-react';
+import { Pencil, Square, Minus, MousePointer, Edit, Upload, Download, FileText, Save, Database } from 'lucide-react';
 import './App.css';
+import { useLayers, useFeatures, useFileOperations } from './hooks/useGIS';
+import type { GISFeature } from './services/gisApi';
 
 interface DrawingTool {
   id: string;
@@ -44,6 +46,21 @@ const App: React.FC = () => {
     exportError: null as string | null,
     lastImportedFile: null as string | null
   });
+
+  // Backend integration state
+  const [currentLayerId, setCurrentLayerId] = useState<string | null>(null);
+  const [backendSync, setBackendSync] = useState({
+    enabled: false,
+    autoSave: true,
+    lastSaved: null as Date | null,
+    saving: false,
+    error: null as string | null
+  });
+
+  // Use backend hooks
+  const { layers, createLayer, updateLayer } = useLayers();
+  const { features: backendFeatures, createFeature, bulkCreateFeatures } = useFeatures(currentLayerId || undefined);
+  const { uploadFile, uploading } = useFileOperations();
 
   const drawingTools: DrawingTool[] = [
     { id: 'point', name: 'Point', icon: <Pencil className="w-4 h-4" />, type: 'Point' },
@@ -302,6 +319,83 @@ const App: React.FC = () => {
     }
   };
 
+  // Backend synchronization functions
+  const saveToBackend = async () => {
+    if (!backendSync.enabled || backendSync.saving) return;
+
+    try {
+      setBackendSync(prev => ({ ...prev, saving: true, error: null }));
+
+      const features = vectorSourceRef.current.getFeatures();
+      if (features.length === 0) return;
+
+      // Convert OpenLayers features to GIS features
+      const format = new GeoJSON();
+      const gisFeatures: GISFeature[] = features.map(feature => {
+        const geojsonFeature = format.writeFeatureObject(feature, {
+          dataProjection: 'EPSG:4326',
+          featureProjection: 'EPSG:3857'
+        });
+
+        return {
+          type: 'Feature',
+          geometry: geojsonFeature.geometry,
+          properties: {
+            name: feature.get('name') || `${geojsonFeature.geometry.type} Feature`,
+            description: feature.get('description') || '',
+            style: feature.getStyle() ? 'custom' : 'default',
+            ...geojsonFeature.properties
+          }
+        };
+      });
+
+      // Create or update layer
+      if (!currentLayerId) {
+        const newLayer = await createLayer({
+          name: `Map Session ${new Date().toLocaleString()}`,
+          type: 'vector' as const,
+          visible: true,
+          opacity: 1,
+          features: gisFeatures
+        });
+        setCurrentLayerId(newLayer.id);
+      } else {
+        await bulkCreateFeatures(gisFeatures);
+      }
+
+      setBackendSync(prev => ({ 
+        ...prev, 
+        saving: false, 
+        lastSaved: new Date(),
+        error: null 
+      }));
+    } catch (error) {
+      setBackendSync(prev => ({ 
+        ...prev, 
+        saving: false, 
+        error: error instanceof Error ? error.message : 'Save failed' 
+      }));
+    }
+  };
+
+  const toggleBackendSync = () => {
+    setBackendSync(prev => ({ ...prev, enabled: !prev.enabled }));
+  };
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (backendSync.enabled && backendSync.autoSave) {
+      const saveInterval = setInterval(() => {
+        const features = vectorSourceRef.current.getFeatures();
+        if (features.length > 0) {
+          saveToBackend();
+        }
+      }, 30000); // Auto-save every 30 seconds
+
+      return () => clearInterval(saveInterval);
+    }
+  }, [backendSync.enabled, backendSync.autoSave]);
+
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -381,6 +475,48 @@ const App: React.FC = () => {
               <div>Lines: {featureCount.lines}</div>
               <div>Polygons: {featureCount.polygons}</div>
             </div>
+          </div>
+
+          {/* Backend Sync Section */}
+          <div className="p-3 bg-purple-50 rounded border border-purple-200">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-medium text-purple-800">Backend Sync</div>
+              <button
+                onClick={toggleBackendSync}
+                className={`text-xs px-2 py-1 rounded ${
+                  backendSync.enabled 
+                    ? 'bg-purple-200 text-purple-800' 
+                    : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                {backendSync.enabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            
+            {backendSync.enabled && (
+              <div className="space-y-2">
+                <button
+                  onClick={saveToBackend}
+                  disabled={backendSync.saving || featureCount.points + featureCount.lines + featureCount.polygons === 0}
+                  className="w-full flex items-center gap-2 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 disabled:bg-gray-100 disabled:text-gray-500"
+                >
+                  <Save className="w-3 h-3" />
+                  {backendSync.saving ? 'Saving...' : 'Save to DB'}
+                </button>
+                
+                {backendSync.lastSaved && (
+                  <div className="text-xs text-purple-600">
+                    Saved: {backendSync.lastSaved.toLocaleTimeString()}
+                  </div>
+                )}
+                
+                {backendSync.error && (
+                  <div className="text-xs text-red-600">
+                    Error: {backendSync.error}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <button
@@ -504,6 +640,37 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Backend Layers Section */}
+        {backendSync.enabled && (
+          <div className="space-y-3 border-t border-gray-200 pt-3">
+            <div className="border-b border-gray-200 pb-2">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Saved Layers</h4>
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {layers.length > 0 ? (
+                  layers.slice(0, 5).map((layer) => (
+                    <div key={layer.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
+                      <div className="flex items-center gap-1">
+                        <Database className="w-3 h-3 text-gray-500" />
+                        <span className="truncate max-w-24">{layer.name}</span>
+                      </div>
+                      <button
+                        onClick={() => {/* loadFromBackend(layer.id) */}}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        Load
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500 text-center py-2">
+                    No saved layers
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-10 max-w-md">
@@ -515,6 +682,8 @@ const App: React.FC = () => {
           <li>• Double-click to finish drawing lines/polygons</li>
           <li>• Import GeoJSON, KML, or GPX files to load existing data</li>
           <li>• Export your work in multiple GIS formats</li>
+          <li>• Enable Backend Sync to save data to database</li>
+          <li>• Use auto-save to automatically backup your work</li>
         </ul>
       </div>
     </div>
