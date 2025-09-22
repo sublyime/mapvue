@@ -5,11 +5,106 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles for MapVue */
+/* Custom styles for MapVue - Ultimate full screen */
+* {
+  box-sizing: border-box !important;
+}
+
+html {
+  height: 100vh !important;
+  width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+body {
+  height: 100vh !important;
+  width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
 #root {
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
+  height: 100vh !important;
+  width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  overflow: hidden !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* Hide scrollbars completely */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Ensure map container has absolute positioning */
+.map-container {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* Force OpenLayers canvas to fill completely */
+.ol-viewport {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+.ol-viewport canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* Ensure OpenLayers controls are visible */
+.ol-control {
+  z-index: 100 !important;
 }
 
 .ol-viewport {
