@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>MapVue Sample KML</name>
+    <description>Sample KML data for testing MapVue import functionality</description>
+    
+    <Placemark>
+      <name>Los Angeles</name>
+      <description>City of Los Angeles</description>
+      <Point>
+        <coordinates>-118.2437,34.0522,0</coordinates>
+      </Point>
+    </Placemark>
+    
+    <Placemark>
+      <name>California Route</name>
+      <description>Sample route in California</description>
+      <LineString>
+        <coordinates>
+          -118.2437,34.0522,0
+          -119.6982,34.4208,0
+          -120.6596,35.2828,0
+        </coordinates>
+      </LineString>
+    </Placemark>
+    
+    <Placemark>
+      <name>San Francisco Bay Area</name>
+      <description>Rough outline of SF Bay Area</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -122.0856,37.4220,0
+              -122.0856,37.8044,0
+              -122.4194,37.8044,0
+              -122.4194,37.4220,0
+              -122.0856,37.4220,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

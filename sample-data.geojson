@@ -1,0 +1,48 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample Point",
+        "description": "A test point for MapVue"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-74.006, 40.7128]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample Line",
+        "description": "A test line for MapVue"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-74.006, 40.7128],
+          [-73.9352, 40.7306],
+          [-73.9776, 40.7527]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Sample Polygon",
+        "description": "A test polygon for MapVue"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-73.9857, 40.7484],
+          [-73.9857, 40.7584],
+          [-73.9757, 40.7584],
+          [-73.9757, 40.7484],
+          [-73.9857, 40.7484]
+        ]]
+      }
+    }
+  ]
+}
