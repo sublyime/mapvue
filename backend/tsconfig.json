@@ -19,12 +19,9 @@
     "strictFunctionTypes": false,
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "types": ["node"],
-    "ignoreDeprecations": "6.0"
+    "emitDecoratorMetadata": true
   },
   "include": [
     "src/**/*"
