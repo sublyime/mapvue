@@ -1,42 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* OpenLayers CSS */
+@import 'ol/ol.css';
+
+/* Custom styles for MapVue */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.ol-viewport {
+  cursor: default !important;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.ol-control {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.ol-zoom {
+  top: 8px;
+  left: 8px;
+}
+
+.ol-attribution {
+  bottom: 8px;
+  right: 8px;
+  max-width: 50%;
+}
+
+/* Drawing interaction cursors */
+.ol-viewport.ol-has-tooltip {
+  cursor: crosshair;
+}
+
+/* Feature highlight styles */
+.ol-box {
+  box-sizing: border-box;
+  border-radius: 2px;
+  border: 2px solid blue;
+  background-color: rgba(0, 0, 255, 0.1);
+}
+
+/* Custom button styles */
+.mapvue-btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 cursor-pointer;
+}
+
+.mapvue-btn-primary {
+  @apply bg-blue-500 hover:bg-blue-600 text-white;
+}
+
+.mapvue-btn-secondary {
+  @apply bg-gray-200 hover:bg-gray-300 text-gray-700;
+}
+
+.mapvue-btn-danger {
+  @apply bg-red-500 hover:bg-red-600 text-white;
+}
+
+/* Sidebar styles */
+.mapvue-sidebar {
+  transition: transform 0.3s ease-in-out;
+}
+
+.mapvue-sidebar.closed {
+  transform: translateX(-100%);
+}
+
+/* Tool button active state */
+.tool-button {
+  @apply p-3 rounded-lg border-2 transition-all duration-200 flex flex-col items-center gap-2 cursor-pointer;
+}
+
+.tool-button.active {
+  @apply border-blue-500 bg-blue-50 text-blue-700;
+}
+
+.tool-button.inactive {
+  @apply border-gray-200 hover:border-gray-300 text-gray-600 hover:bg-gray-50;
+}
+
+/* Map loading state */
+.map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background-color: #f8f9fa;
+}
+
+/* Feature list */
+.feature-item {
+  @apply p-2 bg-gray-50 rounded border text-sm cursor-pointer hover:bg-gray-100 transition-colors;
+}
+
+.feature-item.selected {
+  @apply bg-blue-50 border-blue-200;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .mapvue-sidebar {
+    width: 100vw;
+    max-width: 320px;
   }
-  to {
-    transform: rotate(360deg);
+  
+  .tool-button {
+    @apply p-2 text-xs;
+  }
+  
+  .tool-button span {
+    @apply text-xs;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .ol-control {
+    background-color: rgba(45, 45, 45, 0.8);
+    color: white;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
 }
