@@ -192,7 +192,7 @@ router.delete('/layers/:id', async (req: Request, res: Response) => {
 router.get('/layers/:id/features', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { bbox, zoom } = req.query;
+    const { bbox } = req.query;
     
     let sqlQuery = `
       SELECT 

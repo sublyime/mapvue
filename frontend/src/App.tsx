@@ -259,9 +259,9 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-20 bg-white shadow-md border-b">
+      <div className="bg-white shadow-md border-b z-20">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <MapIcon className="text-blue-600" size={28} />
@@ -279,9 +279,11 @@ function App() {
         </div>
       </div>
 
-      {/* Sidebar */}
-      {sidebarOpen && (
-        <div className="w-80 bg-white shadow-lg z-10 mt-16 overflow-y-auto">
+      {/* Main Content */}
+      <div className="flex-1 flex">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <div className="w-80 bg-white shadow-lg overflow-y-auto">
           <div className="p-4">
             <h2 className="text-lg font-semibold mb-4">Drawing Tools</h2>
             
@@ -367,13 +369,13 @@ function App() {
         </div>
       )}
 
-      {/* Map Container */}
-      <div className="flex-1 relative">
-        <div
-          ref={mapRef}
-          className="w-full h-full mt-16"
-          style={{ background: '#f0f0f0' }}
-        />
+        {/* Map Container */}
+        <div className="flex-1 relative">
+          <div
+            ref={mapRef}
+            className="w-full h-full"
+            style={{ background: '#f0f0f0' }}
+          />
         
         {/* Map Controls */}
         <div className="absolute top-20 right-4 bg-white rounded-lg shadow-lg p-2">
@@ -395,6 +397,7 @@ function App() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

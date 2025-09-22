@@ -1,9 +1,9 @@
+/* OpenLayers CSS - must be imported before Tailwind */
+@import 'ol/ol.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* OpenLayers CSS */
-@import 'ol/ol.css';
 
 /* Custom styles for MapVue */
 #root {
