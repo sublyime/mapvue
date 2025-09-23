@@ -1,7 +1,13 @@
-import { Router, Request, Response } from 'express';
+import { upload } from '../utils/upload';
+// import { parseKML, parseGPX } from '../utils/gisImport'; // To be implemented
+import { Router, Request, Response, NextFunction } from 'express';
 import { initializeDatabase } from '../database/connection';
 
 const router = Router();
+
+// Async handler wrapper to catch errors and pass to next()
+const asyncHandler = (fn: any) => (req: Request, res: Response, next: NextFunction) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
 
 // Helper function to get database instance
 const getDatabase = () => {
@@ -15,14 +21,15 @@ const query = async (text: string, params?: any[]) => {
 };
 
 // Get all GIS layers
-router.get('/layers', async (req: Request, res: Response) => {
+router.get('/layers', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[GET /layers] start');
   try {
     const result = await query(`
       SELECT 
         id, 
         name, 
+        description,
         type, 
-        url, 
         style_config,
         visible, 
         opacity,
@@ -33,61 +40,66 @@ router.get('/layers', async (req: Request, res: Response) => {
       WHERE project_id = $1 OR project_id IS NULL
       ORDER BY created_at DESC
     `, [req.query.project_id || null]);
-    
+
     const layers = result.rows.map(row => ({
       id: row.id,
       name: row.name,
+      description: row.description,
       type: row.type,
-      url: row.url,
       styleConfig: row.style_config,
       visible: row.visible,
-      opacity: row.opacity,
+      opacity: typeof row.opacity === 'number' ? row.opacity : Number(row.opacity),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       projectId: row.project_id
     }));
 
+    console.log('[GET /layers] end');
     res.json({ layers });
   } catch (error) {
-    console.error('Error fetching layers:', error);
-    res.status(500).json({ error: 'Failed to fetch layers' });
+    console.error('[GET /layers] error:', error);
+    res.status(500).json({ error: 'Internal Server Error', details: error instanceof Error ? error.message : error });
   }
-});
+}));
 
 // Add new GIS layer
-router.post('/layers', async (req: Request, res: Response) => {
-  try {
-    const { name, type, url, data, styleConfig, projectId } = req.body;
-    
-    const result = await query(`
-      INSERT INTO layers (name, type, url, data, style_config, project_id, visible, opacity, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-      RETURNING id, name, type, url, data, style_config, visible, opacity, created_at, updated_at, project_id
-    `, [name, type, url, data || null, styleConfig || null, projectId || null, true, 1]);
-    
-    const newLayer = result.rows[0];
-    
-    res.status(201).json({
+router.post('/layers', asyncHandler(async (req: Request, res: Response) => {
+  console.log('[POST /layers] start');
+  const { name, description, type, styleConfig, projectId } = req.body;
+  
+  // Get the admin user ID (for now, we'll use the default admin user)
+  const userResult = await query('SELECT id FROM users WHERE username = $1', ['admin']);
+  if (userResult.rows.length === 0) {
+    return res.status(500).json({ error: 'Default admin user not found' });
+  }
+  const ownerId = userResult.rows[0].id;
+  
+  const result = await query(`
+    INSERT INTO layers (name, description, type, style_config, project_id, owner_id, visible, opacity, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+    RETURNING id, name, description, type, style_config, visible, opacity, created_at, updated_at, project_id
+  `, [name, description || null, type, styleConfig || null, projectId || null, ownerId, true, 1]);
+  
+  const newLayer = result.rows[0];
+  console.log('[POST /layers] end');
+  res.status(201).json({
+    layer: {
       id: newLayer.id,
       name: newLayer.name,
+      description: newLayer.description,
       type: newLayer.type,
-      url: newLayer.url,
-      data: newLayer.data,
       styleConfig: newLayer.style_config,
       visible: newLayer.visible,
-      opacity: newLayer.opacity,
+  opacity: typeof newLayer.opacity === 'number' ? newLayer.opacity : Number(newLayer.opacity),
       createdAt: newLayer.created_at,
       updatedAt: newLayer.updated_at,
       projectId: newLayer.project_id
-    });
-  } catch (error) {
-    console.error('Error creating layer:', error);
-    res.status(500).json({ error: 'Failed to create layer' });
-  }
-});
+    }
+  });
+}));
 
 // Get layer by ID
-router.get('/layers/:id', async (req: Request, res: Response) => {
+router.get('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -95,9 +107,8 @@ router.get('/layers/:id', async (req: Request, res: Response) => {
       SELECT 
         id, 
         name, 
+        description,
         type, 
-        url, 
-        data,
         style_config,
         visible, 
         opacity,
@@ -116,9 +127,8 @@ router.get('/layers/:id', async (req: Request, res: Response) => {
     res.json({
       id: layer.id,
       name: layer.name,
+      description: layer.description,
       type: layer.type,
-      url: layer.url,
-      data: layer.data,
       styleConfig: layer.style_config,
       visible: layer.visible,
       opacity: layer.opacity,
@@ -130,77 +140,74 @@ router.get('/layers/:id', async (req: Request, res: Response) => {
     console.error('Error fetching layer:', error);
     res.status(500).json({ error: 'Failed to fetch layer' });
   }
-});
+}));
 
 // Update layer
-router.put('/layers/:id', async (req: Request, res: Response) => {
+router.put('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, type, url, data, styleConfig, visible, opacity } = req.body;
-    
+    const { name, type, styleConfig, visible, opacity } = req.body;
+
     const result = await query(`
       UPDATE layers 
       SET 
         name = COALESCE($1, name),
         type = COALESCE($2, type),
-        url = COALESCE($3, url),
-        data = COALESCE($4, data),
-        style_config = COALESCE($5, style_config),
-        visible = COALESCE($6, visible),
-        opacity = COALESCE($7, opacity),
+        style_config = COALESCE($3, style_config),
+        visible = COALESCE($4, visible),
+        opacity = COALESCE($5, opacity),
         updated_at = NOW()
-      WHERE id = $8
-      RETURNING id, name, type, url, data, style_config, visible, opacity, created_at, updated_at, project_id
-    `, [name, type, url, data, styleConfig, visible, opacity, id]);
-    
+      WHERE id = $6
+      RETURNING id, name, type, style_config, visible, opacity, created_at, updated_at, project_id
+    `, [name, type, styleConfig, visible, opacity, id]);
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Layer not found' });
     }
-    
+
     const layer = result.rows[0];
     res.json({
-      id: layer.id,
-      name: layer.name,
-      type: layer.type,
-      url: layer.url,
-      data: layer.data,
-      styleConfig: layer.style_config,
-      visible: layer.visible,
-      opacity: layer.opacity,
-      createdAt: layer.created_at,
-      updatedAt: layer.updated_at,
-      projectId: layer.project_id
+      layer: {
+        id: layer.id,
+        name: layer.name,
+        type: layer.type,
+        styleConfig: layer.style_config,
+        visible: layer.visible,
+        opacity: typeof layer.opacity === 'number' ? layer.opacity : Number(layer.opacity),
+        createdAt: layer.created_at,
+        updatedAt: layer.updated_at,
+        projectId: layer.project_id
+      }
     });
   } catch (error) {
     console.error('Error updating layer:', error);
     res.status(500).json({ error: 'Failed to update layer' });
   }
-});
+}));
 
 // Delete layer
-router.delete('/layers/:id', async (req: Request, res: Response) => {
+router.delete('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
     // First delete all features associated with this layer
     await query('DELETE FROM features WHERE layer_id = $1', [id]);
-    
+
     // Then delete the layer
     const result = await query('DELETE FROM layers WHERE id = $1 RETURNING id', [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Layer not found' });
     }
-    
-    res.status(204).send();
+    res.json({ success: true });
   } catch (error) {
     console.error('Error deleting layer:', error);
     res.status(500).json({ error: 'Failed to delete layer' });
   }
-});
+}));
 
 // Get features for a layer
-router.get('/layers/:id/features', async (req: Request, res: Response) => {
+router.get('/layers/:id/features', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { bbox } = req.query;
@@ -253,10 +260,10 @@ router.get('/layers/:id/features', async (req: Request, res: Response) => {
     console.error('Error fetching features:', error);
     res.status(500).json({ error: 'Failed to fetch features' });
   }
-});
+}));
 
 // Add feature to layer
-router.post('/layers/:id/features', async (req: Request, res: Response) => {
+router.post('/layers/:id/features', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { type, properties, geometry } = req.body;
@@ -287,48 +294,51 @@ router.post('/layers/:id/features', async (req: Request, res: Response) => {
     console.error('Error adding feature:', error);
     res.status(500).json({ error: 'Failed to add feature' });
   }
-});
+}));
 
 // Update feature
-router.put('/features/:featureId', async (req: Request, res: Response) => {
+router.put('/features/:featureId', asyncHandler(async (req: Request, res: Response) => {
   try {
-    const { featureId } = req.params;
-    const { properties, geometry } = req.body;
-    
-    const result = await query(`
-      UPDATE features 
-      SET 
-        properties = COALESCE($1, properties),
-        geometry = COALESCE(ST_GeomFromGeoJSON($2), geometry),
-        updated_at = NOW()
-      WHERE id = $3
-      RETURNING id, properties, ST_AsGeoJSON(geometry) as geometry, created_at, updated_at
-    `, [properties, geometry ? JSON.stringify(geometry) : null, featureId]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Feature not found' });
+    const { id } = req.params;
+    const { type, properties, geometry } = req.body;
+
+    if (!geometry || !geometry.type) {
+      return res.status(400).json({ error: 'Invalid geometry' });
     }
-    
+
+    // Get the admin user ID (for now, we'll use the default admin user)
+    const userResult = await query('SELECT id FROM users WHERE username = $1', ['admin']);
+    if (userResult.rows.length === 0) {
+      return res.status(500).json({ error: 'Default admin user not found' });
+    }
+    const ownerId = userResult.rows[0].id;
+
+    const result = await query(`
+      INSERT INTO features (layer_id, properties, geometry, owner_id, created_at, updated_at)
+      VALUES ($1, $2, ST_GeomFromGeoJSON($3), $4, NOW(), NOW())
+      RETURNING id, properties, ST_AsGeoJSON(geometry) as geometry, created_at, updated_at
+    `, [id, properties || {}, JSON.stringify(geometry), ownerId]);
+
     const feature = result.rows[0];
-    
-    res.json({
+
+    res.status(201).json({
       type: 'Feature',
       id: feature.id,
       properties: {
-        ...feature.properties,
-        createdAt: feature.created_at,
-        updatedAt: feature.updated_at
+        ...feature.properties
       },
-      geometry: JSON.parse(feature.geometry)
+      geometry: JSON.parse(feature.geometry),
+      createdAt: feature.created_at,
+      updatedAt: feature.updated_at
     });
   } catch (error) {
     console.error('Error updating feature:', error);
     res.status(500).json({ error: 'Failed to update feature' });
   }
-});
+}));
 
 // Delete feature
-router.delete('/features/:featureId', async (req: Request, res: Response) => {
+router.delete('/features/:featureId', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { featureId } = req.params;
     
@@ -343,12 +353,12 @@ router.delete('/features/:featureId', async (req: Request, res: Response) => {
     console.error('Error deleting feature:', error);
     res.status(500).json({ error: 'Failed to delete feature' });
   }
-});
+}));
 
 // Spatial analysis endpoints
 
 // Get features within a distance of a point
-router.post('/spatial/buffer', async (req: Request, res: Response) => {
+router.post('/spatial/buffer', asyncHandler(async (req: Request, res: Response) => {
   try {
     const { longitude, latitude, distance, layerId } = req.body;
     
@@ -401,6 +411,37 @@ router.post('/spatial/buffer', async (req: Request, res: Response) => {
     console.error('Error performing spatial buffer analysis:', error);
     res.status(500).json({ error: 'Failed to perform spatial analysis' });
   }
-});
+}));
+
+// GIS Import Endpoint (GeoJSON, KML, GPX)
+router.post('/import', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const { originalname, buffer } = req.file;
+    const ext = originalname.split('.').pop()?.toLowerCase();
+
+    let geojson;
+    if (ext === 'geojson' || ext === 'json') {
+      geojson = JSON.parse(buffer.toString('utf8'));
+    } else if (ext === 'kml') {
+      // geojson = parseKML(buffer); // To be implemented
+      return res.status(501).json({ error: 'KML import not implemented yet' });
+    } else if (ext === 'gpx') {
+      // geojson = parseGPX(buffer); // To be implemented
+      return res.status(501).json({ error: 'GPX import not implemented yet' });
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type' });
+    }
+
+    // TODO: Insert geojson features into the database
+    // For now, just return the parsed geojson
+    res.json({ geojson });
+  } catch (error) {
+    console.error('Error importing GIS file:', error);
+    res.status(500).json({ error: 'Failed to import GIS file' });
+  }
+}));
 
 export default router;

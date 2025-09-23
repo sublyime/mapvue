@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type Feature from 'ol/Feature';
+import type Geometry from 'ol/geom/Geometry';
+import Collection from 'ol/Collection';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
@@ -15,6 +18,7 @@ import GPX from 'ol/format/GPX';
 import { Pencil, Square, Minus, MousePointer, Edit, Upload, Download, FileText, Save, Database } from 'lucide-react';
 import './App.css';
 import { useLayers, useFeatures, useFileOperations } from './hooks/useGIS';
+import { LayerPanel } from './components/LayerPanel';
 import type { GISFeature } from './services/gisApi';
 
 interface DrawingTool {
@@ -28,6 +32,7 @@ const App: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef<VectorSource>(new VectorSource());
+  const layerSourcesRef = useRef<{[key: string]: VectorSource}>({});
   const drawInteractionRef = useRef<Draw | null>(null);
   const selectInteractionRef = useRef<Select | null>(null);
   const modifyInteractionRef = useRef<Modify | null>(null);
@@ -58,9 +63,9 @@ const App: React.FC = () => {
   });
 
   // Use backend hooks
-  const { layers, createLayer, updateLayer } = useLayers();
-  const { features: backendFeatures, createFeature, bulkCreateFeatures } = useFeatures(currentLayerId || undefined);
-  const { uploadFile, uploading } = useFileOperations();
+  const { layers, createLayer, updateLayer, deleteLayer } = useLayers();
+  const { createFeature, bulkCreateFeatures } = useFeatures(currentLayerId || undefined);
+  const fileOps = useFileOperations();
 
   const drawingTools: DrawingTool[] = [
     { id: 'point', name: 'Point', icon: <Pencil className="w-4 h-4" />, type: 'Point' },
@@ -90,6 +95,27 @@ const App: React.FC = () => {
     return styles[type as keyof typeof styles];
   };
 
+  // Helper function to get or create vector source for layer
+  const getLayerVectorSource = (layerId: string) => {
+    if (!layerSourcesRef.current[layerId]) {
+      layerSourcesRef.current[layerId] = new VectorSource();
+    }
+    return layerSourcesRef.current[layerId];
+  };
+
+  // Helper function to get active vector source
+
+  // Get all visible vector sources (for modify/select)
+  const getVisibleVectorSources = () => {
+    const sources = [];
+    layers.forEach(layer => {
+      if (layer.visible) sources.push(getLayerVectorSource(layer.id));
+    });
+    // If no visible layers, fallback to default
+    if (sources.length === 0) sources.push(vectorSourceRef.current);
+    return sources;
+  };
+
   const removeAllInteractions = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -103,13 +129,15 @@ const App: React.FC = () => {
 
   const activateDrawTool = (toolType: string) => {
     const map = mapInstanceRef.current;
-    const vectorSource = vectorSourceRef.current;
-    if (!map || !vectorSource) return;
+    if (!map) return;
 
     removeAllInteractions();
 
+    // For modify/select, use all visible sources
     if (toolType === 'select') {
+      const sources = getVisibleVectorSources();
       const selectInteraction = new Select({
+        layers: map.getLayers().getArray().filter(l => l instanceof VectorLayer),
         style: (feature) => {
           const geometry = feature.getGeometry();
           const geometryType = geometry?.getType();
@@ -132,29 +160,83 @@ const App: React.FC = () => {
       map.addInteraction(selectInteraction);
       selectInteractionRef.current = selectInteraction;
     } else if (toolType === 'modify') {
-      const modifyInteraction = new Modify({
-        source: vectorSource
-      });
+      // OpenLayers Modify only works with a single source, so create a combined source if needed
+      const sources = getVisibleVectorSources();
+      let modifyInteraction;
+      if (sources.length === 1) {
+        modifyInteraction = new Modify({ source: sources[0] });
+      } else {
+        // Combine all features into a single OpenLayers Collection for modification
+        const allFeatures = sources.reduce<Feature<Geometry>[]>((arr, src) => arr.concat(src.getFeatures()), []);
+        const featureCollection = new Collection(allFeatures);
+        modifyInteraction = new Modify({ features: featureCollection });
+      }
       map.addInteraction(modifyInteraction);
       modifyInteractionRef.current = modifyInteraction;
     } else if (['Point', 'LineString', 'Polygon'].includes(toolType)) {
+      // Draw only on the current layer (or default)
+      const activeSource = currentLayerId ? getLayerVectorSource(currentLayerId) : vectorSourceRef.current;
       const drawInteraction = new Draw({
-        source: vectorSource,
+        source: activeSource,
         type: toolType as any,
         style: createFeatureStyle(toolType)
       });
 
-      drawInteraction.on('drawend', (event) => {
+      drawInteraction.on('drawend', async (event) => {
         const feature = event.feature;
         const geometry = feature.getGeometry();
         const geometryType = geometry?.getType();
-        
         if (geometryType) {
-          feature.setStyle(createFeatureStyle(geometryType));
+          // Apply layer-specific styling
+          const activeLayer = layers.find(l => l.id === currentLayerId);
+          if (activeLayer?.styleConfig) {
+            const layerStyle = new Style({
+              image: new Circle({
+                radius: 8,
+                fill: new Fill({ color: activeLayer.styleConfig.fillColor }),
+                stroke: new Stroke({ 
+                  color: activeLayer.styleConfig.strokeColor, 
+                  width: activeLayer.styleConfig.strokeWidth 
+                })
+              }),
+              stroke: new Stroke({ 
+                color: activeLayer.styleConfig.strokeColor, 
+                width: activeLayer.styleConfig.strokeWidth 
+              }),
+              fill: new Fill({ 
+                color: activeLayer.styleConfig.fillColor + '4D' // Add transparency
+              })
+            });
+            feature.setStyle(layerStyle);
+          } else {
+            feature.setStyle(createFeatureStyle(geometryType));
+          }
           updateFeatureCount();
+          // Auto-save to backend if layer is selected and sync is enabled
+          if (currentLayerId && backendSync.enabled) {
+            try {
+              const format = new GeoJSON();
+              const geojsonFeature = format.writeFeatureObject(feature, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857'
+              });
+              const gisFeature: GISFeature = {
+                type: 'Feature',
+                geometry: geojsonFeature.geometry,
+                properties: {
+                  name: `${geometryType} Feature`,
+                  description: `Created on ${new Date().toLocaleString()}`,
+                  layerId: currentLayerId,
+                  style: 'layer-default'
+                }
+              };
+              await createFeature(gisFeature);
+            } catch (error) {
+              console.warn('Failed to auto-save feature:', error);
+            }
+          }
         }
       });
-
       map.addInteraction(drawInteraction);
       drawInteractionRef.current = drawInteraction;
     }
@@ -186,8 +268,10 @@ const App: React.FC = () => {
   };
 
   const clearAllFeatures = () => {
-    vectorSourceRef.current.clear();
-    updateFeatureCount();
+  // Clear all features from all layer vector sources
+  Object.values(layerSourcesRef.current).forEach(source => source.clear());
+  vectorSourceRef.current.clear();
+  updateFeatureCount();
   };
 
   // File Import Functions
@@ -224,7 +308,8 @@ const App: React.FC = () => {
           featureProjection: 'EPSG:3857'
         });
 
-        // Apply styles to imported features
+        // Add imported features to the current layer's vector source
+        const targetSource = currentLayerId ? getLayerVectorSource(currentLayerId) : vectorSourceRef.current;
         features.forEach(feature => {
           const geometry = feature.getGeometry();
           const geometryType = geometry?.getType();
@@ -232,8 +317,7 @@ const App: React.FC = () => {
             feature.setStyle(createFeatureStyle(geometryType));
           }
         });
-
-        vectorSourceRef.current.addFeatures(features);
+        targetSource.addFeatures(features);
         updateFeatureCount();
 
         setFileOperations(prev => ({ 
@@ -326,7 +410,13 @@ const App: React.FC = () => {
     try {
       setBackendSync(prev => ({ ...prev, saving: true, error: null }));
 
-      const features = vectorSourceRef.current.getFeatures();
+      // Gather features only from the current layer's vector source
+      let features: any[] = [];
+      if (currentLayerId) {
+        features = getLayerVectorSource(currentLayerId).getFeatures();
+      } else {
+        features = vectorSourceRef.current.getFeatures();
+      }
       if (features.length === 0) return;
 
       // Convert OpenLayers features to GIS features
@@ -395,6 +485,87 @@ const App: React.FC = () => {
       return () => clearInterval(saveInterval);
     }
   }, [backendSync.enabled, backendSync.autoSave]);
+
+  // Effect to manage layer visualization and update modify/select tools
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Remove all vector layers (except base layer)
+    const layersToRemove: VectorLayer<any>[] = [];
+    map.getLayers().forEach(layer => {
+      if (layer instanceof VectorLayer) {
+        layersToRemove.push(layer);
+      }
+    });
+    layersToRemove.forEach(layer => map.removeLayer(layer));
+
+    // Only add the default vector layer if there are features not associated with any layer
+    if (vectorSourceRef.current.getFeatures().length > 0) {
+      const defaultVectorLayer = new VectorLayer({
+        source: vectorSourceRef.current,
+        style: (feature) => {
+          const geometryType = feature.getGeometry()?.getType();
+          return geometryType ? createFeatureStyle(geometryType) : undefined;
+        }
+      });
+      map.addLayer(defaultVectorLayer);
+    }
+
+    // Add a vector layer for each visible layer
+    layers.forEach(layer => {
+      if (layer.visible) {
+        const layerSource = getLayerVectorSource(layer.id);
+        const vectorLayer = new VectorLayer({
+          source: layerSource,
+          opacity: layer.opacity || 1,
+          style: (feature) => {
+            if (layer.styleConfig) {
+              const geometryType = feature.getGeometry()?.getType();
+              if (geometryType === 'Point') {
+                return new Style({
+                  image: new Circle({
+                    radius: 8,
+                    fill: new Fill({ color: layer.styleConfig.fillColor }),
+                    stroke: new Stroke({ 
+                      color: layer.styleConfig.strokeColor, 
+                      width: layer.styleConfig.strokeWidth 
+                    })
+                  })
+                });
+              } else if (geometryType === 'LineString') {
+                return new Style({
+                  stroke: new Stroke({ 
+                    color: layer.styleConfig.strokeColor, 
+                    width: layer.styleConfig.strokeWidth 
+                  })
+                });
+              } else if (geometryType === 'Polygon') {
+                return new Style({
+                  fill: new Fill({ 
+                    color: layer.styleConfig.fillColor + '4D' // Add transparency
+                  }),
+                  stroke: new Stroke({ 
+                    color: layer.styleConfig.strokeColor, 
+                    width: layer.styleConfig.strokeWidth 
+                  })
+                });
+              }
+            }
+            const geometryType = feature.getGeometry()?.getType();
+            return geometryType ? createFeatureStyle(geometryType) : undefined;
+          }
+        });
+        map.addLayer(vectorLayer);
+      }
+    });
+
+    // Remove and re-add modify/select interactions to update their sources
+    if (activeTool === 'modify' || activeTool === 'select') {
+      removeAllInteractions();
+      activateDrawTool(activeTool);
+    }
+  }, [layers, activeTool]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -685,6 +856,50 @@ const App: React.FC = () => {
           <li>• Enable Backend Sync to save data to database</li>
           <li>• Use auto-save to automatically backup your work</li>
         </ul>
+      </div>
+
+      {/* Layer Management Panel */}
+      <div className="absolute bottom-4 left-4 z-10">
+        <LayerPanel
+          layers={layers}
+          activeLayerId={currentLayerId}
+          onLayerSelect={setCurrentLayerId}
+          onLayerCreate={async (layerData) => {
+            try {
+              const newLayer = await createLayer(layerData);
+              setCurrentLayerId(newLayer.id);
+            } catch (error) {
+              console.error('Failed to create layer:', error);
+            }
+          }}
+          onLayerUpdate={async (layerId, layerData) => {
+            try {
+              await updateLayer(layerId, layerData);
+            } catch (error) {
+              console.error('Failed to update layer:', error);
+            }
+          }}
+          onLayerDelete={async (layerId) => {
+            try {
+              await deleteLayer(layerId);
+              if (currentLayerId === layerId) {
+                setCurrentLayerId(null);
+              }
+            } catch (error) {
+              console.error('Failed to delete layer:', error);
+            }
+          }}
+          onLayerVisibilityToggle={async (layerId) => {
+            try {
+              const layer = layers.find(l => l.id === layerId);
+              if (layer) {
+                await updateLayer(layerId, { visible: !layer.visible });
+              }
+            } catch (error) {
+              console.error('Failed to toggle layer visibility:', error);
+            }
+          }}
+        />
       </div>
     </div>
   );

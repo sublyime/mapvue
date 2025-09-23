@@ -1,15 +1,32 @@
 # MapVue Database Setup Script for Windows PowerShell
 # This script creates the database and runs initial migrations
+#
+# Usage Examples:
+#   .\setup.ps1                                                    # Use environment variables or defaults
+#   .\setup.ps1 -DbPassword (ConvertTo-SecureString "mypass" -AsPlainText -Force)  # SecureString password
+#   $securePass = Read-Host "Enter password" -AsSecureString; .\setup.ps1 -DbPassword $securePass
+#
+# Security Note: When using -DbPassword parameter, provide a SecureString for better security
 
 param(
     [string]$DbHost = $(if ($env:DB_HOST) { $env:DB_HOST } else { "localhost" }),
     [string]$DbPort = $(if ($env:DB_PORT) { $env:DB_PORT } else { "5432" }),
     [string]$DbName = $(if ($env:DB_NAME) { $env:DB_NAME } else { "mapvue" }),
     [string]$DbUser = $(if ($env:DB_USER) { $env:DB_USER } else { "mapvue_user" }),
-    [string]$DbPassword = $(if ($env:DB_PASSWORD) { $env:DB_PASSWORD } else { "mapvue_password" }),
+    [SecureString]$DbPassword,
     [string]$PostgresUser = $(if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }),
     [switch]$SkipSampleData
 )
+
+# Convert SecureString to plain text for environment variable (required by psql)
+# If no SecureString provided, use environment variable or default
+if ($DbPassword) {
+    $DbPasswordPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($DbPassword))
+} elseif ($env:DB_PASSWORD) {
+    $DbPasswordPlain = $env:DB_PASSWORD
+} else {
+    $DbPasswordPlain = "mapvue_password"
+}
 
 Write-Host "Setting up MapVue database..." -ForegroundColor Green
 
@@ -44,7 +61,7 @@ function New-Database {
 DO `$`$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '$DbUser') THEN
-        CREATE ROLE $DbUser LOGIN PASSWORD '$DbPassword';
+        CREATE ROLE $DbUser LOGIN PASSWORD '$DbPasswordPlain';
     END IF;
 END
 `$`$;
@@ -77,7 +94,7 @@ ALTER USER $DbUser CREATEDB;
 function Invoke-Migrations {
     Write-Host "Running database migrations..."
     
-    $env:PGPASSWORD = $DbPassword
+    $env:PGPASSWORD = $DbPasswordPlain
     $migrationPath = Join-Path $PSScriptRoot "migrations\001_initial_schema.sql"
     
     if (-not (Test-Path $migrationPath)) {
@@ -99,7 +116,7 @@ function Invoke-Migrations {
 function New-SampleData {
     Write-Host "Creating sample data..."
     
-    $env:PGPASSWORD = $DbPassword
+    $env:PGPASSWORD = $DbPasswordPlain
     
     $sampleDataSql = @"
 -- Create a sample admin user
@@ -179,7 +196,7 @@ ON CONFLICT DO NOTHING;
 function Test-Setup {
     Write-Host "Verifying database setup..."
     
-    $env:PGPASSWORD = $DbPassword
+    $env:PGPASSWORD = $DbPasswordPlain
     
     $verifySql = @"
 SELECT 'Users: ' || COUNT(*) as user_count FROM users;
@@ -217,12 +234,18 @@ function Main {
     
     Write-Host ""
     Write-Host "Database setup completed successfully!" -ForegroundColor Green
-    Write-Host "Connection string: postgresql://${DbUser}:${DbPassword}@${DbHost}:${DbPort}/${DbName}" -ForegroundColor Yellow
+    Write-Host "Connection string: postgresql://${DbUser}:[REDACTED]@${DbHost}:${DbPort}/${DbName}" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "1. Update your .env file with the database connection details"
     Write-Host "2. Install required Node.js dependencies: npm install"
     Write-Host "3. Start the backend server: npm run dev"
+    
+    # Clear sensitive information from memory
+    if ($DbPasswordPlain) {
+        $DbPasswordPlain = $null
+    }
+    [System.GC]::Collect()
 }
 
 # Run main function

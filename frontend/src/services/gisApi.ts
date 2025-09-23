@@ -16,6 +16,7 @@ export interface GISFeature {
 export interface GISLayer {
   id: string;
   name: string;
+  description?: string;
   type: 'vector' | 'raster' | 'tile';
   features?: GISFeature[];
   url?: string;

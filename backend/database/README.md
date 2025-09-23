@@ -32,7 +32,22 @@ The MapVue database includes the following main tables:
 ### Step 1: Database Creation
 Choose your platform and run the appropriate setup script:
 
-#### Windows (PowerShell):
+#### Windows (PowerShell) - Secure Method:
+```powershell
+cd backend
+# Option 1: Interactive secure password input
+.\database\setup-secure.ps1
+
+# Option 2: Using SecureString parameter
+$securePass = ConvertTo-SecureString "your_password" -AsPlainText -Force
+.\database\setup.ps1 -DbPassword $securePass
+
+# Option 3: Using environment variables (less secure but convenient)
+$env:DB_PASSWORD="your_password"
+npm run db:setup
+```
+
+#### Windows (PowerShell) - Standard Method:
 ```powershell
 cd backend
 npm run db:setup
@@ -43,6 +58,13 @@ npm run db:setup
 cd backend
 npm run db:setup-bash
 ```
+
+### Security Best Practices
+- Use the `setup-secure.ps1` script for interactive secure password input
+- When using the `-DbPassword` parameter, always provide a SecureString
+- Avoid hardcoding passwords in scripts or command history
+- Set appropriate file permissions on configuration files
+- Use environment variables for CI/CD environments
 
 #### Manual Setup:
 ```sql

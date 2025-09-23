@@ -26,7 +26,8 @@ const io = new Server(httpServer, {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const DEFAULT_PORT = parseInt(process.env.PORT || '3001', 10);
+const MAX_PORT_ATTEMPTS = 5;
 
 // Initialize database connection
 async function initializeApp() {
@@ -91,10 +92,57 @@ app.use(limiter);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Log all requests and responses for /api/gis/layers for debugging
+app.use('/api/gis/layers', (req, res, next) => {
+  console.log(`[GIS LAYERS] ${req.method} ${req.originalUrl}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
+  const originalSend = res.send;
+  res.send = function (body) {
+    console.log(`[GIS LAYERS RESPONSE] Status: ${res.statusCode}`);
+    try {
+      console.log('Response Body:', typeof body === 'string' ? body : JSON.stringify(body));
+    } catch (e) {
+      console.log('Response Body:', body);
+    }
+    // @ts-ignore
+    return originalSend.call(this, body);
+  };
+  next();
+});
+
+// Add this before your API routes to log all GIS route errors
+app.use('/api/gis', async (req, res, next) => {
+  try {
+    // ...existing code...
+    next();
+  } catch (err) {
+    console.error(`[GIS ROUTE ERROR] ${req.method} ${req.originalUrl}`);
+    if (err instanceof Error) {
+      console.error(err.stack);
+    } else {
+      console.error(err);
+    }
+    next(err);
+  }
+});
+
 // API routes
 app.use('/api/gis', gisRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
+
+// Add this after app.use('/api/gis', gisRoutes); to log errors from GIS routes
+app.use('/api/gis', (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error(`[GIS ROUTE ERROR HANDLER] ${req.method} ${req.originalUrl}`);
+  if (err instanceof Error) {
+    console.error(err.stack);
+  } else {
+    console.error(err);
+  }
+  next(err);
+});
 
 // Health check endpoint with database status
 app.get('/health', async (req, res) => {
@@ -206,11 +254,11 @@ app.use((req, res) => {
 export { io };
 
 // Start server
-async function startServer() {
+async function startServer(port = DEFAULT_PORT, attempt = 1) {
   const dbConnected = await initializeApp();
-  
-  httpServer.listen(PORT, () => {
-    console.log(`🚀 MapVue server running on port ${PORT}`);
+
+  const server = app.listen(port, () => {
+    console.log(`🚀 MapVue server running on port ${port}`);
     console.log(`📡 Socket.io enabled for real-time features`);
     console.log(`🌍 CORS enabled for: ${process.env.CORS_ORIGIN || "http://localhost:5173"}`);
     console.log(`🛡️  Security headers enabled`);
@@ -221,7 +269,22 @@ async function startServer() {
       console.log(`⚠️  Database: Not configured - see database/SETUP_INSTRUCTIONS.md`);
     }
     
-    console.log(`📍 Health check: http://localhost:${PORT}/health`);
+    console.log(`📍 Health check: http://localhost:${port}/health`);
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      if (attempt < MAX_PORT_ATTEMPTS) {
+        const nextPort = port + 1;
+        console.error(`❌ Port ${port} is already in use. Trying port ${nextPort}...`);
+        setTimeout(() => startServer(nextPort, attempt + 1), 500);
+      } else {
+        console.error(`❌ All attempted ports (${DEFAULT_PORT}-${DEFAULT_PORT + MAX_PORT_ATTEMPTS - 1}) are in use. Exiting.`);
+        process.exit(1);
+      }
+    } else {
+      throw err;
+    }
   });
 }
 
@@ -230,4 +293,13 @@ startServer().catch((error) => {
   process.exit(1);
 });
 
-export default app;
+// Add global error handlers at the end of the file, before export default app
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+// Reminder: If using Express <5, unhandled promise rejections in routes may not be caught.
+// Make sure all async route handlers in gisRoutes use next(err) on error.
