@@ -1,0 +1,199 @@
+import React, { useEffect } from 'react';
+import { WindowManagerProvider, useWindowManager } from '../contexts/WindowManagerContext';
+import WindowRenderer from './WindowRenderer';
+import Taskbar from './Taskbar';
+import {
+  RouteManagerWindow,
+  LayerPanelWindow,
+  MapLayerControlWindow,
+  LocationTrackerWindow,
+  GPSIntegrationWindow,
+  SettingsWindow,
+  ToolsPanelWindow
+} from './WindowComponents';
+import type { Map } from 'ol';
+import type { RouteData } from './RouteManager';
+
+interface WindowizedAppProps {
+  map: Map | null;
+  children?: React.ReactNode;
+  // Props for the various windows
+  layers?: any[];
+  activeLayerId?: string | null;
+  onLayerSelect?: (layerId: string) => void;
+  onLayerCreate?: (layerData: any) => void;
+  onLayerDelete?: (layerId: string) => void;
+  onLayerUpdate?: (layerId: string, layerData: any) => void;
+  onLayerVisibilityToggle?: (layerId: string) => void;
+  onLayerToggle?: (layerId: string) => void;
+  onBaseLayerChange?: (layerId: string) => void;
+  onRouteCreate?: (route: RouteData) => void;
+  onRouteUpdate?: (route: RouteData) => void;
+  onRouteDelete?: (routeId: string) => void;
+  onRouteImported?: (route: RouteData) => void;
+  currentRoute?: RouteData | null;
+}
+
+// Component to register all windows
+const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
+  const windowManager = useWindowManager();
+
+  useEffect(() => {
+    // Register all available windows
+    const windowConfigs = [
+      {
+        id: 'route-manager',
+        title: 'Route Manager',
+        component: <RouteManagerWindow 
+          map={props.map}
+          onRouteCreate={props.onRouteCreate}
+          onRouteUpdate={props.onRouteUpdate}
+          onRouteDelete={props.onRouteDelete}
+        />,
+        initialState: {
+          width: 450,
+          height: 600,
+          x: 20,
+          y: 20
+        },
+        persistent: true,
+        allowMultiple: false
+      },
+      {
+        id: 'layer-panel',
+        title: 'Layer Panel',
+        component: <LayerPanelWindow 
+          layers={props.layers}
+          activeLayerId={props.activeLayerId}
+          onLayerSelect={props.onLayerSelect}
+          onLayerCreate={props.onLayerCreate}
+          onLayerDelete={props.onLayerDelete}
+          onLayerUpdate={props.onLayerUpdate}
+          onLayerVisibilityToggle={props.onLayerVisibilityToggle}
+        />,
+        initialState: {
+          width: 350,
+          height: 500,
+          x: 500,
+          y: 20
+        },
+        persistent: true,
+        allowMultiple: false
+      },
+      {
+        id: 'map-layers',
+        title: 'Map Layers',
+        component: <MapLayerControlWindow 
+          layers={props.layers}
+          onLayerToggle={props.onLayerToggle}
+          onBaseLayerChange={props.onBaseLayerChange}
+        />,
+        initialState: {
+          width: 320,
+          height: 400,
+          x: 880,
+          y: 20
+        },
+        persistent: false,
+        allowMultiple: false
+      },
+      {
+        id: 'location-tracker',
+        title: 'Location Tracker',
+        component: <LocationTrackerWindow 
+          onRouteUpdate={props.onRouteUpdate}
+          onRecordingComplete={props.onRouteCreate}
+        />,
+        initialState: {
+          width: 380,
+          height: 450,
+          x: 100,
+          y: 100
+        },
+        persistent: false,
+        allowMultiple: false
+      },
+      {
+        id: 'gps-integration',
+        title: 'GPS Devices',
+        component: <GPSIntegrationWindow 
+          onRouteImported={props.onRouteImported}
+          currentRoute={props.currentRoute}
+        />,
+        initialState: {
+          width: 400,
+          height: 500,
+          x: 150,
+          y: 150
+        },
+        persistent: false,
+        allowMultiple: false
+      },
+      {
+        id: 'settings',
+        title: 'Settings',
+        component: <SettingsWindow />,
+        initialState: {
+          width: 450,
+          height: 550,
+          x: 200,
+          y: 100
+        },
+        persistent: false,
+        allowMultiple: false
+      },
+      {
+        id: 'tools',
+        title: 'GIS Tools',
+        component: <ToolsPanelWindow />,
+        initialState: {
+          width: 300,
+          height: 400,
+          x: 300,
+          y: 200
+        },
+        persistent: false,
+        allowMultiple: false
+      }
+    ];
+
+    // Register all windows
+    windowConfigs.forEach(config => {
+      windowManager.registerWindow(config);
+    });
+
+    // Auto-open persistent windows on first load
+    const persistentWindows = windowConfigs.filter(config => config.persistent);
+    persistentWindows.forEach(config => {
+      if (!windowManager.isWindowOpen(config.id)) {
+        windowManager.openWindow(config);
+      }
+    });
+  }, [windowManager, props.map, props.layers, props.activeLayerId, props.currentRoute]);
+
+  return null;
+};
+
+const WindowizedApp: React.FC<WindowizedAppProps> = (props) => {
+  return (
+    <WindowManagerProvider>
+      <div className="relative w-full h-full">
+        {/* Register all windows */}
+        <WindowRegistrar {...props} />
+        
+        {/* Main application content */}
+        <div className="w-full h-full">
+          {props.children}
+        </div>
+        
+        {/* Render all windows */}
+        <WindowRenderer />
+        
+        {/* Taskbar */}
+        <Taskbar position="bottom" />
+      </div>
+    </WindowManagerProvider>
+  );
+};
+
+export default WindowizedApp;
