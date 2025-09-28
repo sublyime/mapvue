@@ -21,7 +21,7 @@ const query = async (text: string, params?: any[]) => {
 };
 
 // Get all GIS layers
-router.get('/layers', asyncHandler(async (req: Request, res: Response) => {
+router.get('/layers', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   console.log('[GET /layers] start');
   try {
     const result = await query(`
@@ -56,21 +56,24 @@ router.get('/layers', asyncHandler(async (req: Request, res: Response) => {
 
     console.log('[GET /layers] end');
     res.json({ layers });
+    return;
   } catch (error) {
     console.error('[GET /layers] error:', error);
     res.status(500).json({ error: 'Internal Server Error', details: error instanceof Error ? error.message : error });
+    return;
   }
 }));
 
 // Add new GIS layer
-router.post('/layers', asyncHandler(async (req: Request, res: Response) => {
+router.post('/layers', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   console.log('[POST /layers] start');
   const { name, description, type, styleConfig, projectId } = req.body;
   
   // Get the admin user ID (for now, we'll use the default admin user)
   const userResult = await query('SELECT id FROM users WHERE username = $1', ['admin']);
   if (userResult.rows.length === 0) {
-    return res.status(500).json({ error: 'Default admin user not found' });
+    res.status(500).json({ error: 'Default admin user not found' });
+    return;
   }
   const ownerId = userResult.rows[0].id;
   
@@ -90,16 +93,17 @@ router.post('/layers', asyncHandler(async (req: Request, res: Response) => {
       type: newLayer.type,
       styleConfig: newLayer.style_config,
       visible: newLayer.visible,
-  opacity: typeof newLayer.opacity === 'number' ? newLayer.opacity : Number(newLayer.opacity),
+      opacity: typeof newLayer.opacity === 'number' ? newLayer.opacity : Number(newLayer.opacity),
       createdAt: newLayer.created_at,
       updatedAt: newLayer.updated_at,
       projectId: newLayer.project_id
     }
   });
+  return;
 }));
 
 // Get layer by ID
-router.get('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
+router.get('/layers/:id', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     
@@ -120,7 +124,8 @@ router.get('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
     `, [id]);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Layer not found' });
+      res.status(404).json({ error: 'Layer not found' });
+      return;
     }
     
     const layer = result.rows[0];
@@ -136,14 +141,16 @@ router.get('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
       updatedAt: layer.updated_at,
       projectId: layer.project_id
     });
+    return;
   } catch (error) {
     console.error('Error fetching layer:', error);
     res.status(500).json({ error: 'Failed to fetch layer' });
+    return;
   }
 }));
 
 // Update layer
-router.put('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
+router.put('/layers/:id', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { name, type, styleConfig, visible, opacity } = req.body;
@@ -162,7 +169,8 @@ router.put('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
     `, [name, type, styleConfig, visible, opacity, id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Layer not found' });
+      res.status(404).json({ error: 'Layer not found' });
+      return;
     }
 
     const layer = result.rows[0];
@@ -179,14 +187,16 @@ router.put('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
         projectId: layer.project_id
       }
     });
+    return;
   } catch (error) {
     console.error('Error updating layer:', error);
     res.status(500).json({ error: 'Failed to update layer' });
+    return;
   }
 }));
 
 // Delete layer
-router.delete('/layers/:id', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/layers/:id', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     
@@ -197,17 +207,20 @@ router.delete('/layers/:id', asyncHandler(async (req: Request, res: Response) =>
     const result = await query('DELETE FROM layers WHERE id = $1 RETURNING id', [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Layer not found' });
+      res.status(404).json({ error: 'Layer not found' });
+      return;
     }
     res.json({ success: true });
+    return;
   } catch (error) {
     console.error('Error deleting layer:', error);
     res.status(500).json({ error: 'Failed to delete layer' });
+    return;
   }
 }));
 
 // Get features for a layer
-router.get('/layers/:id/features', asyncHandler(async (req: Request, res: Response) => {
+router.get('/layers/:id/features', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { bbox } = req.query;
@@ -256,20 +269,23 @@ router.get('/layers/:id/features', asyncHandler(async (req: Request, res: Respon
       type: 'FeatureCollection',
       features
     });
+    return;
   } catch (error) {
     console.error('Error fetching features:', error);
     res.status(500).json({ error: 'Failed to fetch features' });
+    return;
   }
 }));
 
 // Add feature to layer
-router.post('/layers/:id/features', asyncHandler(async (req: Request, res: Response) => {
+router.post('/layers/:id/features', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { type, properties, geometry } = req.body;
     
     if (!geometry || !geometry.type) {
-      return res.status(400).json({ error: 'Invalid geometry' });
+      res.status(400).json({ error: 'Invalid geometry' });
+      return;
     }
     
     const result = await query(`
@@ -290,26 +306,30 @@ router.post('/layers/:id/features', asyncHandler(async (req: Request, res: Respo
       },
       geometry: JSON.parse(feature.geometry)
     });
+    return;
   } catch (error) {
     console.error('Error adding feature:', error);
     res.status(500).json({ error: 'Failed to add feature' });
+    return;
   }
 }));
 
 // Update feature
-router.put('/features/:featureId', asyncHandler(async (req: Request, res: Response) => {
+router.put('/features/:featureId', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { type, properties, geometry } = req.body;
 
     if (!geometry || !geometry.type) {
-      return res.status(400).json({ error: 'Invalid geometry' });
+      res.status(400).json({ error: 'Invalid geometry' });
+      return;
     }
 
     // Get the admin user ID (for now, we'll use the default admin user)
     const userResult = await query('SELECT id FROM users WHERE username = $1', ['admin']);
     if (userResult.rows.length === 0) {
-      return res.status(500).json({ error: 'Default admin user not found' });
+      res.status(500).json({ error: 'Default admin user not found' });
+      return;
     }
     const ownerId = userResult.rows[0].id;
 
@@ -331,39 +351,45 @@ router.put('/features/:featureId', asyncHandler(async (req: Request, res: Respon
       createdAt: feature.created_at,
       updatedAt: feature.updated_at
     });
+    return;
   } catch (error) {
     console.error('Error updating feature:', error);
     res.status(500).json({ error: 'Failed to update feature' });
+    return;
   }
 }));
 
 // Delete feature
-router.delete('/features/:featureId', asyncHandler(async (req: Request, res: Response) => {
+router.delete('/features/:featureId', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { featureId } = req.params;
     
     const result = await query('DELETE FROM features WHERE id = $1 RETURNING id', [featureId]);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Feature not found' });
+      res.status(404).json({ error: 'Feature not found' });
+      return;
     }
     
     res.status(204).send();
+    return;
   } catch (error) {
     console.error('Error deleting feature:', error);
     res.status(500).json({ error: 'Failed to delete feature' });
+    return;
   }
 }));
 
 // Spatial analysis endpoints
 
 // Get features within a distance of a point
-router.post('/spatial/buffer', asyncHandler(async (req: Request, res: Response) => {
+router.post('/spatial/buffer', asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { longitude, latitude, distance, layerId } = req.body;
     
     if (!longitude || !latitude || !distance) {
-      return res.status(400).json({ error: 'Missing required parameters: longitude, latitude, distance' });
+      res.status(400).json({ error: 'Missing required parameters: longitude, latitude, distance' });
+      return;
     }
     
     let sqlQuery = `
@@ -407,17 +433,20 @@ router.post('/spatial/buffer', asyncHandler(async (req: Request, res: Response) 
       type: 'FeatureCollection',
       features
     });
+    return;
   } catch (error) {
     console.error('Error performing spatial buffer analysis:', error);
     res.status(500).json({ error: 'Failed to perform spatial analysis' });
+    return;
   }
 }));
 
 // GIS Import Endpoint (GeoJSON, KML, GPX)
-router.post('/import', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/import', upload.single('file'), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
     }
     const { originalname, buffer } = req.file;
     const ext = originalname.split('.').pop()?.toLowerCase();
@@ -427,20 +456,25 @@ router.post('/import', upload.single('file'), asyncHandler(async (req: Request, 
       geojson = JSON.parse(buffer.toString('utf8'));
     } else if (ext === 'kml') {
       // geojson = parseKML(buffer); // To be implemented
-      return res.status(501).json({ error: 'KML import not implemented yet' });
+      res.status(501).json({ error: 'KML import not implemented yet' });
+      return;
     } else if (ext === 'gpx') {
       // geojson = parseGPX(buffer); // To be implemented
-      return res.status(501).json({ error: 'GPX import not implemented yet' });
+      res.status(501).json({ error: 'GPX import not implemented yet' });
+      return;
     } else {
-      return res.status(400).json({ error: 'Unsupported file type' });
+      res.status(400).json({ error: 'Unsupported file type' });
+      return;
     }
 
     // TODO: Insert geojson features into the database
     // For now, just return the parsed geojson
     res.json({ geojson });
+    return;
   } catch (error) {
     console.error('Error importing GIS file:', error);
     res.status(500).json({ error: 'Failed to import GIS file' });
+    return;
   }
 }));
 

@@ -161,7 +161,7 @@ export class LayerModel {
 
     const query = 'DELETE FROM layers WHERE id = $1 AND owner_id = $2';
     const result = await getDatabase().query(query, [id, userId]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   static async list(params: LayerQueryParams, userId?: string): Promise<{ layers: Layer[]; total: number }> {
@@ -253,7 +253,7 @@ export class LayerModel {
 
     const query = 'UPDATE layers SET layer_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2';
     const result = await getDatabase().query(query, [newOrder, layerId]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   static async toggleVisibility(layerId: string, userId: string): Promise<Layer | null> {

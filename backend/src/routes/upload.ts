@@ -59,10 +59,11 @@ const upload = multer({
 });
 
 // Upload GIS file
-router.post('/gis', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/gis', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
     }
     
     const { layerName, projectId } = req.body;
@@ -183,7 +184,7 @@ router.post('/gis', upload.single('file'), async (req: Request, res: Response) =
 });
 
 // Export layer to file
-router.get('/export/:layerId', async (req: Request, res: Response) => {
+router.get('/export/:layerId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { layerId } = req.params;
     const { format = 'geojson' } = req.query;
@@ -195,7 +196,8 @@ router.get('/export/:layerId', async (req: Request, res: Response) => {
     );
     
     if (layerResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Layer not found' });
+      res.status(404).json({ error: 'Layer not found' });
+      return;
     }
     
     const layer = layerResult.rows[0];

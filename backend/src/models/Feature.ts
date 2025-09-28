@@ -151,7 +151,7 @@ export class FeatureModel {
 
     const query = 'DELETE FROM features WHERE id = $1 AND owner_id = $2';
     const result = await getDatabase().query(query, [id, userId]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   static async list(params: FeatureQueryParams, userId?: string): Promise<{ features: Feature[]; total: number }> {
@@ -294,7 +294,7 @@ export class FeatureModel {
     const query = `DELETE FROM features WHERE owner_id = $1 AND id IN (${placeholders})`;
     
     const result = await getDatabase().query(query, [userId, ...ids]);
-    return result.rowCount;
+    return result.rowCount ?? 0;
   }
 
   static async getExtent(layerId: string): Promise<{ bounds: number[] } | null> {

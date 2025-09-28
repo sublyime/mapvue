@@ -121,7 +121,7 @@ export class ProjectModel {
 
     const query = 'DELETE FROM projects WHERE id = $1 AND owner_id = $2';
     const result = await getDatabase().query(query, [id, userId]);
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   static async list(params: ProjectQueryParams, userId?: string): Promise<{ projects: Project[]; total: number }> {

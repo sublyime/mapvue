@@ -16,6 +16,7 @@ export class Database {
       min: config.pool?.min || 2,
       max: config.pool?.max || 10,
       idleTimeoutMillis: (config.pool?.idle || 30) * 1000,
+      connectionTimeoutMillis: 10000,
     };
 
     this.pool = new Pool(poolConfig);
@@ -42,18 +43,47 @@ export class Database {
       const result = await this.pool.query(text, params);
       const duration = Date.now() - start;
       
-      console.log('Executed query', {
-        text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-        duration,
-        rows: result.rowCount,
-      });
+      // Only log slow queries in production
+      if (process.env.NODE_ENV === 'development' || duration > 1000) {
+        console.log('Query executed', {
+          text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+          duration: `${duration}ms`,
+          rows: result.rowCount,
+          slow: duration > 1000
+        });
+      }
       
       return result;
     } catch (error) {
-      console.error('Database query error', { text, params, error });
+      console.error('Database query error', { 
+        text: text.substring(0, 100), 
+        params: process.env.NODE_ENV === 'development' ? params : '[hidden]', 
+        error: error instanceof Error ? error.message : error 
+      });
       throw error;
     }
   }
+
+  async queryWithCache(text: string, params?: any[], cacheKey?: string, ttl: number = 300) {
+    // Simple in-memory cache implementation for common queries
+    // In production, consider using Redis
+    if (cacheKey && this.queryCache.has(cacheKey)) {
+      const cached = this.queryCache.get(cacheKey)!;
+      if (Date.now() - cached.timestamp < ttl * 1000) {
+        return cached.result;
+      }
+    }
+
+    const result = await this.query(text, params);
+    
+    if (cacheKey) {
+      this.queryCache.set(cacheKey, { result, timestamp: Date.now() });
+    }
+    
+    return result;
+  }
+
+  private queryCache = new Map<string, { result: any; timestamp: number }>();
 
   async getClient() {
     return await this.pool.connect();

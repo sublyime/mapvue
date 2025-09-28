@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+import * as jwt from 'jsonwebtoken';
 import { initializeDatabase } from '../database/connection';
 
 const router = Router();
@@ -17,12 +17,13 @@ const query = async (text: string, params?: any[]) => {
 };
 
 // Register new user
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, email, password } = req.body;
     
     if (!username || !email || !password) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
     
     // Check if user already exists
@@ -32,7 +33,8 @@ router.post('/register', async (req: Request, res: Response) => {
     );
     
     if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: 'User already exists' });
+      res.status(409).json({ error: 'User already exists' });
+      return;
     }
     
     // Hash password
@@ -71,12 +73,13 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // Login user
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
     
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      res.status(400).json({ error: 'Email and password are required' });
+      return;
     }
     
     // Find user
@@ -86,7 +89,8 @@ router.post('/login', async (req: Request, res: Response) => {
     );
     
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
     }
     
     const user = result.rows[0];
@@ -95,7 +99,8 @@ router.post('/login', async (req: Request, res: Response) => {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
     }
     
     // Generate JWT token
@@ -121,12 +126,13 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // Get current user profile
-router.get('/profile', async (req: Request, res: Response) => {
+router.get('/profile', async (req: Request, res: Response): Promise<void> => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+      res.status(401).json({ error: 'No token provided' });
+      return;
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
@@ -137,7 +143,8 @@ router.get('/profile', async (req: Request, res: Response) => {
     );
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'User not found' });
+      return;
     }
     
     const user = result.rows[0];
