@@ -12,7 +12,7 @@ param(
     [string]$DbHost = $(if ($env:DB_HOST) { $env:DB_HOST } else { "localhost" }),
     [string]$DbPort = $(if ($env:DB_PORT) { $env:DB_PORT } else { "5432" }),
     [string]$DbName = $(if ($env:DB_NAME) { $env:DB_NAME } else { "mapvue" }),
-    [string]$DbUser = $(if ($env:DB_USER) { $env:DB_USER } else { "mapvue_user" }),
+    [string]$DbUser = $(if ($env:DB_USER) { $env:DB_USER } else { "postgres" }),
     [SecureString]$DbPassword,
     [string]$PostgresUser = $(if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }),
     [switch]$SkipSampleData
@@ -25,7 +25,7 @@ if ($DbPassword) {
 } elseif ($env:DB_PASSWORD) {
     $DbPasswordPlain = $env:DB_PASSWORD
 } else {
-    $DbPasswordPlain = "mapvue_password"
+    $DbPasswordPlain = "ala1nna"
 }
 
 Write-Host "Setting up MapVue database..." -ForegroundColor Green

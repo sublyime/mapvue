@@ -41,54 +41,66 @@ MapVue is a full-featured web-based mapping application that allows users to imp
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/sublyime/mapvue.git
    cd mapvue
    ```
 
 2. **Install dependencies**
    ```bash
+   # Install all dependencies from root
    npm install
-   cd frontend && npm install
-   cd ../backend && npm install
+   
+   # Or install individually
+   cd backend && npm install
+   cd ../frontend && npm install
+   cd ..
    ```
 
-3. **Set up the database**
-   ```sql
-   -- Connect to PostgreSQL and create database
-   CREATE DATABASE mapvue_db;
-   \c mapvue_db;
-   CREATE EXTENSION postgis;
-   
-   -- Run the schema
-   \i database/schema.sql
-   ```
+3. **Set up PostgreSQL with PostGIS**
+   - Install PostgreSQL from: https://www.postgresql.org/download/windows/
+   - Make sure to install with PostGIS extension
+   - Remember your postgres superuser password
 
-4. **Configure environment variables**
-   
-   Create `backend/.env`:
-   ```env
-   NODE_ENV=development
-   PORT=3001
-   DATABASE_URL=postgresql://username:password@localhost:5432/mapvue_db
-   JWT_SECRET=your-super-secret-jwt-key
-   CORS_ORIGIN=http://localhost:5173
+4. **Automated Database Setup (Recommended)**
+   ```powershell
+   cd backend\database
+   .\setup.ps1
    ```
-
-5. **Start the development servers**
    
-   Terminal 1 (Backend):
+   This PowerShell script will automatically:
+   - Create the mapvue database
+   - Set up all tables and schema with PostGIS
+   - Create sample data (optional)
+   - Configure all indexes and triggers
+
+5. **Configure environment variables**
    ```bash
    cd backend
+   cp .env.example .env
+   ```
+   
+   Update `.env` with your PostgreSQL credentials:
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=mapvue
+   DB_USER=postgres
+   DB_PASSWORD=your_postgres_password
+   ```
+
+6. **Start the development servers**
+   ```bash
    npm run dev
    ```
    
-   Terminal 2 (Frontend):
-   ```bash
-   cd frontend
-   npm run dev
-   ```
+   This starts both backend (port 3001) and frontend (port 5173) simultaneously.
+   
+   ✅ **Success indicators:**
+   - Backend: "✅ Database connection established successfully"  
+   - Backend: "🗺️ PostGIS extension detected and ready"
+   - Frontend: "Local: http://localhost:5173/"
 
-6. **Open your browser**
+7. **Open your browser**
    Navigate to `http://localhost:5173` to start using MapVue!
 
 ## 🏗️ Architecture
@@ -209,15 +221,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🐛 Bug Reports & Feature Requests
 
-- **Bug Reports**: Please use the [GitHub Issues](https://github.com/your-username/mapvue/issues) page
+- **Bug Reports**: Please use the [GitHub Issues](https://github.com/sublyime/mapvue/issues) page
 - **Feature Requests**: Create a feature request issue with detailed description
-- **Security Issues**: Please email security@mapvue.dev for security-related concerns
+- **Security Issues**: Please email security concerns to the repository owner
 
 ## 💬 Community & Support
 
-- **Documentation**: Visit our [docs folder](docs/) for detailed guides
-- **Discussions**: Join the conversation in [GitHub Discussions](https://github.com/your-username/mapvue/discussions)
-- **Chat**: Join our community chat (Discord/Slack link here)
+- **Documentation**: Visit our [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed setup instructions
+- **Database Setup**: See [database setup guide](backend/database/SETUP_INSTRUCTIONS.md)
+- **Discussions**: Join the conversation in [GitHub Discussions](https://github.com/sublyime/mapvue/discussions)
 
 ## 🙏 Acknowledgments
 

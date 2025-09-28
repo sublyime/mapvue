@@ -136,8 +136,8 @@ export function getDatabaseConfig(): DatabaseConfig {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432'),
     database: process.env.DB_NAME || 'mapvue',
-    username: process.env.DB_USER || 'mapvue_user',
-    password: process.env.DB_PASSWORD || 'mapvue_password',
+    username: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'ala1nna',
     ssl: process.env.DB_SSL === 'true',
     pool: {
       min: parseInt(process.env.DB_POOL_MIN || '2'),

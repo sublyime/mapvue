@@ -29,6 +29,58 @@ The MapVue database includes the following main tables:
 
 ## Setup Instructions
 
+### Option 1: Automated Setup (Recommended)
+
+Use the PowerShell setup script for complete automation:
+
+```powershell
+cd backend\database
+.\setup.ps1
+```
+
+This script will:
+- Check PostgreSQL connectivity
+- Create the mapvue database 
+- Set up all tables, indexes, and PostGIS extensions
+- Create sample data (optional)
+- Verify the setup
+
+### Option 2: Manual Setup
+
+If you prefer manual setup:
+
+```sql
+-- Connect as postgres superuser
+psql -U postgres
+
+-- Create database 
+CREATE DATABASE mapvue OWNER postgres;
+GRANT ALL PRIVILEGES ON DATABASE mapvue TO postgres;
+
+-- Exit and connect to new database
+\q
+psql -U postgres -d mapvue
+
+-- Enable PostGIS
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Run the schema
+\i migrations/001_initial_schema.sql
+```
+
+### Environment Configuration
+
+Update your `backend/.env` file:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mapvue
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password
+```
+
 ### Step 1: Database Creation
 Choose your platform and run the appropriate setup script:
 
