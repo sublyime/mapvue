@@ -9,7 +9,9 @@ import {
   LocationTrackerWindow,
   GPSIntegrationWindow,
   SettingsWindow,
-  ToolsPanelWindow
+  ToolsPanelWindow,
+  DrawingToolsWindow,
+  FileOperationsWindow
 } from './WindowComponents';
 import type { Map } from 'ol';
 import type { RouteData } from './RouteManager';
@@ -32,6 +34,30 @@ interface WindowizedAppProps {
   onRouteDelete?: (routeId: string) => void;
   onRouteImported?: (route: RouteData) => void;
   currentRoute?: RouteData | null;
+  // Drawing tools props
+  drawingTools?: any[];
+  activeTool?: string;
+  featureCount?: { points: number; lines: number; polygons: number };
+  backendSync?: {
+    enabled: boolean;
+    saving: boolean;
+    lastSaved: Date | null;
+    error: string | null;
+  };
+  onToolClick?: (toolId: string) => void;
+  onToggleBackendSync?: () => void;
+  onSaveToBackend?: () => void;
+  onClearAllFeatures?: () => void;
+  // File operations props
+  fileOperations?: {
+    isImporting: boolean;
+    isExporting: boolean;
+    lastImportedFile: string | null;
+    importError: string | null;
+    exportError: string | null;
+  };
+  onFileImport?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onExportToFormat?: (format: string) => void;
 }
 
 // Component to register all windows
@@ -125,6 +151,45 @@ const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
           height: 500,
           x: 150,
           y: 150
+        },
+        persistent: false,
+        allowMultiple: false
+      },
+      {
+        id: 'drawing-tools',
+        title: 'Drawing Tools',
+        component: <DrawingToolsWindow 
+          drawingTools={props.drawingTools}
+          activeTool={props.activeTool}
+          featureCount={props.featureCount}
+          backendSync={props.backendSync}
+          onToolClick={props.onToolClick}
+          onToggleBackendSync={props.onToggleBackendSync}
+          onSaveToBackend={props.onSaveToBackend}
+          onClearAllFeatures={props.onClearAllFeatures}
+        />,
+        initialState: {
+          width: 300,
+          height: 400,
+          x: 250,
+          y: 250
+        },
+        persistent: false,
+        allowMultiple: false
+      },
+      {
+        id: 'file-operations',
+        title: 'File Operations',
+        component: <FileOperationsWindow 
+          fileOperations={props.fileOperations}
+          onFileImport={props.onFileImport}
+          onExportToFormat={props.onExportToFormat}
+        />,
+        initialState: {
+          width: 350,
+          height: 380,
+          x: 320,
+          y: 320
         },
         persistent: false,
         allowMultiple: false

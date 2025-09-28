@@ -8,7 +8,9 @@ import {
   Minimize2, 
   RotateCw,
   Plus,
-  X
+  X,
+  Edit3,
+  FileText
 } from 'lucide-react';
 import { useWindowManager } from '../contexts/WindowManagerContext';
 
@@ -34,6 +36,10 @@ const Taskbar: React.FC<TaskbarProps> = ({
         return <Navigation className="w-4 h-4" />;
       case 'gps-integration':
         return <Smartphone className="w-4 h-4" />;
+      case 'drawing-tools':
+        return <Edit3 className="w-4 h-4" />;
+      case 'file-operations':
+        return <FileText className="w-4 h-4" />;
       case 'settings':
         return <Settings className="w-4 h-4" />;
       default:
