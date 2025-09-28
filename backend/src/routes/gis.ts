@@ -69,13 +69,23 @@ router.post('/layers', asyncHandler(async (req: Request, res: Response): Promise
   console.log('[POST /layers] start');
   const { name, description, type, styleConfig, projectId } = req.body;
   
-  // Get the admin user ID (for now, we'll use the default admin user)
-  const userResult = await query('SELECT id FROM users WHERE username = $1', ['admin']);
+  // Get the admin user ID (for development, create a default user if none exists)
+  let userResult = await query('SELECT id FROM users WHERE username = $1', ['admin']);
+  let ownerId;
+  
   if (userResult.rows.length === 0) {
-    res.status(500).json({ error: 'Default admin user not found' });
-    return;
+    // Create a default admin user for development if none exists
+    const createUserResult = await query(`
+      INSERT INTO users (username, email, password_hash, first_name, last_name, role, email_verified)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
+    `, ['admin', 'admin@mapvue.local', '$2b$10$rOzJJe1qMJ1pVr8qX1nLgOqO9XZvFZrH8KvGwJ5HZJ1X5V7J5V7J5V', 'Admin', 'User', 'admin', true]);
+    
+    ownerId = createUserResult.rows[0].id;
+    console.log('[POST /layers] Created default admin user');
+  } else {
+    ownerId = userResult.rows[0].id;
   }
-  const ownerId = userResult.rows[0].id;
   
   const result = await query(`
     INSERT INTO layers (name, description, type, style_config, project_id, owner_id, visible, opacity, created_at, updated_at)

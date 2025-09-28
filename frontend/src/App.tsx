@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type Feature from 'ol/Feature';
+import Feature from 'ol/Feature';
 import type Geometry from 'ol/geom/Geometry';
 import Collection from 'ol/Collection';
 import { Map, View } from 'ol';
-import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import OSM from 'ol/source/OSM';
 import Draw from 'ol/interaction/Draw';
 import Select from 'ol/interaction/Select';
 import Modify from 'ol/interaction/Modify';
@@ -15,10 +13,17 @@ import { fromLonLat } from 'ol/proj';
 import GeoJSON from 'ol/format/GeoJSON';
 import KML from 'ol/format/KML';
 import GPX from 'ol/format/GPX';
+import Point from 'ol/geom/Point';
 import { Pencil, Square, Minus, MousePointer, Edit, Upload, Download, FileText, Save, Database } from 'lucide-react';
 import './App.css';
-import { useLayers, useFeatures, useFileOperations } from './hooks/useGIS';
+import { useLayers, useFeatures } from './hooks/useGIS';
 import { LayerPanel } from './components/LayerPanel';
+import LocateMeButton from './components/LocateMeButton';
+import MapLayerControl from './components/MapLayerControl';
+import RouteManager from './components/RouteManager';
+import Toast from './components/Toast';
+import useGeolocation from './hooks/useGeolocation';
+import { useMapLayers } from './hooks/useMapLayers';
 import type { GISFeature } from './services/gisApi';
 
 interface DrawingTool {
@@ -65,7 +70,26 @@ const App: React.FC = () => {
   // Use backend hooks
   const { layers, createLayer, updateLayer, deleteLayer } = useLayers();
   const { createFeature, bulkCreateFeatures } = useFeatures(currentLayerId || undefined);
-  const fileOps = useFileOperations();
+
+  // Geolocation hook
+  const { position, error: locationError, isLoading: isLocating, getCurrentPosition } = useGeolocation();
+  const userLocationFeatureRef = useRef<Feature<Point> | null>(null);
+  const userLocationSourceRef = useRef<VectorSource>(new VectorSource());
+  const userLocationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+
+  // Map layers hook
+  const { mapLayers, toggleLayer, changeBaseLayer } = useMapLayers(mapInstanceRef.current);
+
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const drawingTools: DrawingTool[] = [
     { id: 'point', name: 'Point', icon: <Pencil className="w-4 h-4" />, type: 'Point' },
@@ -135,7 +159,6 @@ const App: React.FC = () => {
 
     // For modify/select, use all visible sources
     if (toolType === 'select') {
-      const sources = getVisibleVectorSources();
       const selectInteraction = new Select({
         layers: map.getLayers().getArray().filter(l => l instanceof VectorLayer),
         style: (feature) => {
@@ -574,13 +597,27 @@ const App: React.FC = () => {
       source: vectorSourceRef.current
     });
 
+    // Create user location layer
+    const userLocationLayer = new VectorLayer({
+      source: userLocationSourceRef.current,
+      style: new Style({
+        image: new Circle({
+          radius: 12,
+          fill: new Fill({ color: '#3b82f6' }),
+          stroke: new Stroke({ 
+            color: '#ffffff', 
+            width: 3 
+          })
+        })
+      }),
+      zIndex: 1000 // Ensure user location is always on top
+    });
+
     const map = new Map({
       target: mapRef.current,
       layers: [
-        new TileLayer({
-          source: new OSM()
-        }),
-        vectorLayer
+        vectorLayer,
+        userLocationLayer
       ],
       view: new View({
         center: fromLonLat([-98.5795, 39.8283]),
@@ -589,11 +626,56 @@ const App: React.FC = () => {
     });
 
     mapInstanceRef.current = map;
+    userLocationLayerRef.current = userLocationLayer;
 
     return () => {
       map.setTarget(undefined);
     };
   }, []);
+
+  // Handle user location
+  const handleLocateMe = () => {
+    getCurrentPosition();
+  };
+
+  // Effect to handle position updates
+  useEffect(() => {
+    if (position && mapInstanceRef.current) {
+      const coordinates = fromLonLat([position.longitude, position.latitude]);
+      
+      // Remove existing user location feature
+      if (userLocationFeatureRef.current) {
+        userLocationSourceRef.current.removeFeature(userLocationFeatureRef.current);
+      }
+
+      // Create new user location feature
+      const locationFeature = new Feature({
+        geometry: new Point(coordinates)
+      });
+
+      userLocationFeatureRef.current = locationFeature;
+      userLocationSourceRef.current.addFeature(locationFeature);
+
+      // Center map on user location
+      const view = mapInstanceRef.current.getView();
+      view.animate({
+        center: coordinates,
+        zoom: 16, // Zoom to a reasonable level for user location
+        duration: 1000
+      });
+
+      // Show success message
+      showToast('Location found! Map centered on your position.', 'success');
+    }
+  }, [position]);
+
+  // Effect to handle location errors
+  useEffect(() => {
+    if (locationError) {
+      console.error('Location error:', locationError);
+      showToast(locationError.message, 'error');
+    }
+  }, [locationError]);
 
   const handleToolClick = (toolId: string) => {
     if (activeTool === toolId) {
@@ -612,8 +694,25 @@ const App: React.FC = () => {
     <div className="w-full h-screen relative bg-gray-100">
       <div ref={mapRef} className="absolute inset-0" />
       
-      <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10 max-w-sm">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">MapVue Drawing Tools</h3>
+      {/* Map Controls - Layer Control and Locate Me Button */}
+      <div className="absolute top-4 right-4 z-20 space-y-3">
+        <MapLayerControl
+          layers={mapLayers}
+          onLayerToggle={toggleLayer}
+          onBaseLayerChange={changeBaseLayer}
+        />
+        <LocateMeButton 
+          onClick={handleLocateMe}
+          isLoading={isLocating}
+          disabled={!navigator.geolocation}
+        />
+      </div>
+      
+      {/* Left Side Controls */}
+      <div className="absolute top-4 left-4 z-10 space-y-4">
+        {/* Drawing Tools Panel */}
+        <div className="bg-white rounded-lg shadow-lg p-4 max-w-sm">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">MapVue Drawing Tools</h3>
         
         <div className="grid grid-cols-2 gap-2 mb-4">
           {drawingTools.map((tool) => (
@@ -842,6 +941,18 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+        </div>
+        
+        {/* Route Manager Panel */}
+        <RouteManager 
+          map={mapInstanceRef.current}
+          onRouteCreate={(route) => {
+            showToast(`Route "${route.name}" created successfully!`, 'success');
+          }}
+          onRouteDelete={() => {
+            showToast('Route deleted successfully!', 'success');
+          }}
+        />
       </div>
 
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-10 max-w-md">
@@ -901,6 +1012,14 @@ const App: React.FC = () => {
           }}
         />
       </div>
+      
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast 
+          {...toast} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 };
