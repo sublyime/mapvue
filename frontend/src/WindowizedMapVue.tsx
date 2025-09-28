@@ -13,6 +13,7 @@ import GPX from 'ol/format/GPX';
 
 import WindowizedApp from './components/WindowizedApp';
 import { useLayers, useFeatures } from './hooks/useGIS';
+import { useMapLayers } from './hooks/useMapLayers';
 import Toast from './components/Toast';
 import type { GISFeature } from './services/gisApi';
 
@@ -65,6 +66,9 @@ const WindowizedMapVue: React.FC = () => {
   // Use backend hooks
   const { layers, createLayer, updateLayer, deleteLayer } = useLayers();
   const { bulkCreateFeatures } = useFeatures(currentLayerId || undefined);
+  
+  // Map layers (base maps) management
+  const { mapLayers, toggleLayer, changeBaseLayer } = useMapLayers(mapInstanceRef.current);
 
   // Route management state
   const [routes, setRoutes] = useState<any[]>([]);
@@ -401,17 +405,20 @@ const WindowizedMapVue: React.FC = () => {
 
   // Layer visibility handlers
   const handleLayerVisibilityToggle = (layerId: string) => {
-    // Toggle layer visibility in the layers state
+    // Toggle layer visibility in the layers state (for GIS layers)
     updateLayer(layerId, { visible: !layers.find(l => l.id === layerId)?.visible });
   };
 
   const handleLayerToggle = (layerId: string) => {
-    handleLayerVisibilityToggle(layerId);
+    console.log('Toggle overlay layer:', layerId);
+    // Use the toggleLayer from useMapLayers for base map overlays
+    toggleLayer(layerId);
   };
 
   const handleBaseLayerChange = (layerId: string) => {
-    // Handle base layer changes - could be implemented based on your base layer system
-    setToast({ message: `Base layer changed to ${layerId}`, type: 'info' });
+    console.log('Change base layer:', layerId);
+    // Use the changeBaseLayer from useMapLayers for base map switching
+    changeBaseLayer(layerId);
   };
 
   const updateFeatureCount = () => {
@@ -496,7 +503,7 @@ const WindowizedMapVue: React.FC = () => {
   return (
     <WindowizedApp
       map={mapInstanceRef.current}
-      layers={layers}
+      layers={mapLayers}
       activeLayerId={currentLayerId}
       currentRoute={currentRoute}
       // Route management props
