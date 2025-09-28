@@ -1,34 +1,52 @@
-# MapVue - Open Source GIS Web Application
+# MapVue - Professional GIS Web Application with macOS Interface
 
-A comprehensive web-based Geographic Information System (GIS) application similar to Google Earth, built with modern web technologies and designed for complete customizability and open-source collaboration.
+A comprehensive web-based Geographic Information System (GIS) application featuring a stunning macOS-style dock interface, built with modern web technologies for professional GIS workflows and complete customizability.
 
 ## 🌍 Overview
 
-MapVue is a full-featured web-based mapping application that allows users to import, visualize, edit, and export various types of geographic data. With a beautiful, customizable interface and powerful drawing tools, MapVue provides a complete solution for GIS data management and visualization.
+MapVue is a professional-grade web-based mapping application that combines the power of OpenLayers with an intuitive macOS-style dock interface. Users can import, visualize, edit, and export various types of geographic data through a beautiful, draggable window system that mirrors the macOS desktop experience. With comprehensive drawing tools, GPS integration, and real-time collaboration features, MapVue provides a complete solution for GIS data management and visualization.
 
 ## ✨ Key Features
 
-### Data Import & Export
-- **Universal Format Support**: Import KML, GeoJSON, Shapefile, GPX, and other GIS formats
-- **Flexible Export**: Export to any desired format
-- **API Integration**: Connect to external APIs for data import/export
-- **Webhook Support**: Real-time data synchronization
+### 🖥️ macOS-Style Interface
+- **Professional Dock System**: macOS-inspired dock with 9 application icons at the bottom
+- **Draggable Windows**: Fully resizable and draggable windows with traffic light controls (red/yellow/green)
+- **Glassmorphism Design**: Modern glass-blur effects and smooth animations
+- **Multi-Window Workspace**: Open multiple tools simultaneously in separate windows
+- **Minimize/Restore**: Proper window minimization that returns windows to the dock
 
-### Interactive Mapping
-- **Beautiful Maps**: High-quality map rendering with multiple tile layer options
-- **Drawing Tools**: Complete set of tools for creating and editing geometric features
-- **Markers & Places**: Add, edit, and manage points of interest
-- **Layer Management**: Organize data in customizable layers
+### 🗺️ Advanced GIS Capabilities
+- **OpenLayers Integration**: Professional-grade mapping with OpenLayers 10+
+- **Comprehensive Drawing Tools**: Point, Line, Polygon creation with Select/Modify interactions
+- **Route Management**: Complete route planning with waypoints, distance calculation, and elevation profiles
+- **Layer Management**: Advanced layer controls with visibility, opacity, and reordering
+- **Spatial Analysis**: Built-in GIS analysis tools and measurements
 
-### Collaboration & Real-time Features
-- **Live Editing**: Real-time collaborative editing with Socket.io
-- **User Management**: Multi-user support with authentication
-- **Project Sharing**: Share and collaborate on mapping projects
+### 📱 GPS & Location Services
+- **Real-time GPS Tracking**: Live position tracking with accuracy indicators
+- **GPS Device Integration**: Connect to GPS devices via Web Serial API
+- **Location Picker**: Click-to-coordinate selection tools
+- **Track Recording**: Record and export GPS tracks and routes
 
-### Customization
-- **Fully Customizable Interface**: Tailor the UI to your specific needs
-- **Open Source**: 100% open source with MIT license
-- **Extensible Architecture**: Built for easy extension and modification
+### 📁 Data Import & Export
+- **Universal Format Support**: GeoJSON, KML, GPX, and Shapefile import/export
+- **Sample Data Included**: Pre-loaded sample GeoJSON and KML files
+- **Drag & Drop**: Easy file import with drag-and-drop functionality
+- **API Integration**: Connect to external GIS APIs and services
+- **Real-time Sync**: Live data synchronization with backend
+
+### 🛠️ Professional Tools
+- **File Operations**: Comprehensive file management with conflict resolution
+- **Settings Panel**: Customizable application preferences and map settings
+- **GIS Tools**: Professional GIS analysis and utility functions
+- **Map Controls**: Zoom, pan, full extent, and coordinate system controls
+
+### 👥 Collaboration & Backend
+- **PostgreSQL + PostGIS**: Robust spatial database backend
+- **User Authentication**: Secure user management with JWT tokens
+- **Project Management**: Multi-user projects with sharing capabilities
+- **Real-time Updates**: Live collaboration with Socket.io
+- **RESTful API**: Complete REST API for all GIS operations
 
 ## 🚀 Quick Start
 
@@ -106,12 +124,15 @@ MapVue is a full-featured web-based mapping application that allows users to imp
 ## 🏗️ Architecture
 
 ### Frontend (React + TypeScript)
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite for fast development and building
-- **Mapping**: OpenLayers for professional GIS capabilities
-- **Styling**: Tailwind CSS for responsive design
-- **State Management**: Zustand for application state
+- **Framework**: React 19.1.1 with TypeScript for cutting-edge development
+- **Build Tool**: Vite 7.1.7 for lightning-fast development and building
+- **Mapping**: OpenLayers 10+ for professional GIS capabilities
+- **Styling**: Tailwind CSS for responsive design with glassmorphism effects
+- **UI Components**: Lucide React icons for professional iconography
+- **Window Management**: Custom macOS-style window system with drag/resize/minimize
+- **State Management**: React Context API for window and application state
 - **Real-time**: Socket.io client for live collaboration
+- **GPS Integration**: Web Serial API for GPS device connectivity
 
 ### Backend (Node.js + Express)
 - **Runtime**: Node.js with Express.js framework
@@ -132,24 +153,51 @@ MapVue is a full-featured web-based mapping application that allows users to imp
 
 ```
 mapvue/
-├── frontend/                 # React frontend application
+├── frontend/                    # React frontend with macOS interface
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── stores/         # Zustand state stores
-│   │   ├── types/          # TypeScript type definitions
-│   │   └── utils/          # Utility functions
-│   └── public/             # Static assets
-├── backend/                 # Node.js backend API
+│   │   ├── components/         # React components
+│   │   │   ├── MacOSDock.tsx   # macOS-style dock component
+│   │   │   ├── DraggableWindow.tsx # Draggable window system
+│   │   │   ├── WindowComponents.tsx # Window wrappers
+│   │   │   ├── RouteManager.tsx     # Route management
+│   │   │   ├── LayerPanel.tsx       # Layer controls
+│   │   │   ├── LocationTracker.tsx  # GPS tracking
+│   │   │   └── GPSIntegration.tsx   # GPS device integration
+│   │   ├── hooks/              # Custom React hooks
+│   │   │   └── useGIS.ts       # GIS data management hooks
+│   │   ├── services/           # API and GIS services
+│   │   │   ├── api.ts          # Main API client
+│   │   │   └── gisApi.ts       # GIS-specific API calls
+│   │   ├── utils/              # Utility functions
+│   │   │   ├── gpsDeviceManager.ts # GPS device management
+│   │   │   └── deviceExports.ts    # Device export utilities
+│   │   ├── types/              # TypeScript definitions
+│   │   └── context/            # React Context providers
+│   │       └── WindowManagerContext.tsx # Window state management
+│   └── public/                 # Static assets
+├── backend/                    # Node.js backend API
 │   ├── src/
-│   │   ├── routes/         # Express route handlers
-│   │   ├── middleware/     # Express middleware
-│   │   ├── services/       # Business logic services
-│   │   └── utils/          # Backend utilities
-│   └── uploads/            # File upload directory
-├── database/               # Database schema and migrations
-├── shared/                 # Shared TypeScript types and utilities
-└── docs/                   # Additional documentation
+│   │   ├── routes/            # Express route handlers
+│   │   │   ├── auth.ts        # Authentication routes
+│   │   │   ├── gis.ts         # GIS data operations
+│   │   │   └── upload.ts      # File upload handling
+│   │   ├── models/            # Database models
+│   │   │   ├── User.ts        # User model
+│   │   │   ├── Project.ts     # Project model
+│   │   │   ├── Layer.ts       # Layer model
+│   │   │   └── Feature.ts     # Feature model
+│   │   ├── database/          # Database connection
+│   │   │   └── connection.ts  # PostgreSQL + PostGIS
+│   │   └── utils/             # Backend utilities
+│   │       ├── gisImport.ts   # GIS file import
+│   │       └── upload.ts      # File handling
+│   └── database/              # Database setup
+│       ├── schema.sql         # Database schema
+│       ├── setup.ps1          # Windows setup script
+│       └── migrations/        # Database migrations
+├── sample-data.geojson         # Sample GeoJSON data
+├── sample-data.kml             # Sample KML data
+└── README.md                   # This documentation
 ```
 
 ## 🛠️ Development
@@ -181,31 +229,38 @@ npm run lint         # Run ESLint
 
 ## 🗺️ Roadmap
 
-### Phase 1 (Current)
-- ✅ Basic project structure
-- ✅ Frontend React application
-- ✅ Backend API server
-- ✅ Database schema
-- ⏳ Drawing tools implementation
-- ⏳ File import/export functionality
+### Phase 1 (COMPLETED ✓)
+- ✅ macOS-style dock interface with 9 applications
+- ✅ Draggable, resizable windows with traffic light controls
+- ✅ OpenLayers mapping integration
+- ✅ Comprehensive drawing tools (Point, Line, Polygon, Select, Modify)
+- ✅ Route management with waypoints and distance calculation
+- ✅ Layer management with visibility and opacity controls
+- ✅ GPS integration and real-time location tracking
+- ✅ File import/export (GeoJSON, KML, GPX)
+- ✅ PostgreSQL + PostGIS backend
+- ✅ Complete REST API with authentication
+- ✅ Professional UI with glassmorphism effects
 
-### Phase 2
-- 🔄 Advanced GIS operations
-- 🔄 Layer styling and symbology
-- 🔄 Spatial analysis tools
-- 🔄 Advanced drawing tools (circles, polygons, measurements)
+### Phase 2 (IN PROGRESS 🔄)
+- 🔄 Advanced spatial analysis tools and measurements
+- 🔄 Enhanced GPS device integration and track management
+- 🔄 Custom layer styling and symbology
+- 🔄 Offline map caching and sync
+- 🔄 Mobile-responsive interface optimization
 
-### Phase 3
-- 📋 Plugin system for extensions
-- 📋 Advanced collaboration features
-- 📋 Mobile responsive interface
-- 📋 Offline capabilities
+### Phase 3 (PLANNED 📅)
+- � Plugin system for custom extensions
+- � Advanced collaboration with real-time multi-user editing
+- � 3D visualization and terrain analysis
+- 📅 Time-series data visualization and animation
+- � Advanced reporting and export capabilities
 
-### Phase 4
-- 📋 3D visualization support
-- 📋 Time-series data visualization
-- 📋 Advanced analytics and reporting
-- 📋 Enterprise features
+### Phase 4 (FUTURE 🎆)
+- 🎆 Enterprise features and deployment options
+- 🎆 Advanced analytics and machine learning integration
+- 🎆 Mobile native applications (iOS/Android)
+- 🎆 Cloud deployment and scaling options
 
 ## 🤝 Contributing
 
@@ -233,13 +288,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- [OpenLayers](https://openlayers.org/) for the amazing mapping library
-- [PostGIS](https://postgis.net/) for spatial database capabilities
+- [OpenLayers](https://openlayers.org/) for the amazing professional mapping library
+- [PostGIS](https://postgis.net/) for powerful spatial database capabilities
 - [React](https://reactjs.org/) and the entire React ecosystem
+- [Vite](https://vitejs.dev/) for the incredibly fast build system
+- [Tailwind CSS](https://tailwindcss.com/) for the utility-first styling framework
+- [Lucide React](https://lucide.dev/) for the beautiful, consistent icon set
+- [TypeScript](https://www.typescriptlang.org/) for type safety and developer experience
+- [PostgreSQL](https://www.postgresql.org/) for the robust database foundation
 - All the open source contributors who make projects like this possible
 
 ---
 
 **Built with ❤️ by the MapVue community**
 
-*MapVue - Making GIS accessible to everyone*
+*MapVue - Professional GIS with macOS elegance*

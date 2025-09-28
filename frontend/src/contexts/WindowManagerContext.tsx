@@ -29,6 +29,10 @@ interface WindowManagerContextType {
   getWindowState: (id: string) => WindowState | null;
   registerWindow: (config: WindowConfig) => void;
   getRegisteredWindows: () => WindowConfig[];
+  toggleWindow: (id: string) => void;
+  isWindowMinimized: (id: string) => boolean;
+  minimizeWindow: (id: string) => void;
+  restoreWindow: (id: string) => void;
 }
 
 const WindowManagerContext = createContext<WindowManagerContextType | null>(null);
@@ -213,6 +217,68 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
     return state.windows[id] || null;
   }, [state.windows]);
 
+  // Toggle window (show if hidden/minimized, minimize if visible)
+  const toggleWindow = useCallback((id: string) => {
+    const registeredWindow = registeredWindows[id];
+    if (!registeredWindow) return;
+
+    if (!isWindowOpen(id)) {
+      // Window is not open, open it
+      openWindow(registeredWindow);
+    } else {
+      // Window is open, check if minimized
+      const windowState = getWindowState(id);
+      if (windowState?.isMinimized) {
+        // Restore window
+        restoreWindow(id);
+      } else {
+        // Minimize window
+        minimizeWindow(id);
+      }
+    }
+  }, [registeredWindows, isWindowOpen, openWindow, getWindowState]);
+
+  // Check if window is minimized
+  const isWindowMinimized = useCallback((id: string) => {
+    const windowState = getWindowState(id);
+    return windowState?.isMinimized || false;
+  }, [getWindowState]);
+
+  // Minimize a specific window
+  const minimizeWindow = useCallback((id: string) => {
+    setState(prev => {
+      const window = prev.windows[id];
+      if (!window) return prev;
+
+      return {
+        ...prev,
+        windows: {
+          ...prev.windows,
+          [id]: { ...window, isMinimized: true }
+        },
+        activeWindow: prev.activeWindow === id ? null : prev.activeWindow
+      };
+    });
+  }, []);
+
+  // Restore a minimized window
+  const restoreWindow = useCallback((id: string) => {
+    setState(prev => {
+      const window = prev.windows[id];
+      if (!window) return prev;
+
+      return {
+        ...prev,
+        windows: {
+          ...prev.windows,
+          [id]: { ...window, isMinimized: false, zIndex: prev.maxZIndex + 1 }
+        },
+        activeWindow: id,
+        maxZIndex: prev.maxZIndex + 1
+      };
+    });
+  }, []);
+
   const contextValue: WindowManagerContextType = {
     state,
     openWindow,
@@ -223,7 +289,11 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
     isWindowOpen,
     getWindowState,
     registerWindow,
-    getRegisteredWindows
+    getRegisteredWindows,
+    toggleWindow,
+    isWindowMinimized,
+    minimizeWindow,
+    restoreWindow
   };
 
   return (

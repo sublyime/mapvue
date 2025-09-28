@@ -1,31 +1,44 @@
 # MapVue Database Setup Guide
 
 ## Overview
-This guide covers the complete database setup for MapVue, including PostgreSQL with PostGIS extension for spatial data handling.
+This guide covers the complete database setup for MapVue's macOS-style GIS web application, including PostgreSQL with PostGIS extension for advanced spatial data handling. The database supports the full-featured GIS application with route management, layer controls, drawing tools, GPS integration, and real-time collaboration.
 
 ## Prerequisites
-1. PostgreSQL 12+ installed and running
-2. PostGIS extension available
-3. Node.js and npm installed
-4. PowerShell (Windows) or Bash (Linux/Mac)
+1. PostgreSQL 15+ installed and running
+2. PostGIS extension available (automatically installed with most PostgreSQL distributions)
+3. Node.js 18+ and npm installed
+4. PowerShell (Windows) or Bash (Linux/Mac) for automated setup scripts
+5. Modern web browser for testing the application
 
 ## Database Schema
-The MapVue database includes the following main tables:
+The MapVue database is designed to support a comprehensive GIS application with the following main tables:
 
 ### Core Tables
-- **users**: User authentication and profile data
-- **projects**: GIS project containers
-- **layers**: Map layers within projects
-- **features**: Geometric features with spatial data
-- **project_collaborators**: Project sharing and permissions
-- **activity_logs**: Audit trail for changes
-- **file_uploads**: File upload tracking and metadata
+- **users**: User authentication, profiles, and preferences
+- **projects**: GIS project containers with spatial bounds and metadata
+- **layers**: Map layers within projects with styling and configuration
+- **features**: Geometric features with full PostGIS spatial data support
+- **project_collaborators**: Real-time collaboration and permission management
+- **activity_logs**: Complete audit trail for all changes and user actions
+- **file_uploads**: File upload tracking, metadata, and import history
+- **routes**: Route planning data with waypoints and navigation information
+- **gps_tracks**: GPS tracking data with time-series location information
 
-### Spatial Features
-- PostGIS geometry columns with SRID 4326 (WGS84)
-- Spatial indexes for performance
-- Geographic bounds and extent calculations
-- Spatial query functions
+### Advanced Spatial Features
+- PostGIS geometry columns with SRID 4326 (WGS84) for global compatibility
+- Advanced spatial indexes (GiST) for high-performance spatial queries
+- Geographic bounds and extent calculations for map viewport management
+- Spatial relationship functions (intersects, within, distance, buffer)
+- Support for all OpenGIS geometry types (Point, LineString, Polygon, Multi*)
+- Coordinate system transformation capabilities
+- Spatial clustering and aggregation functions
+
+### Real-time Collaboration Support
+- Live editing with conflict resolution
+- User presence tracking and session management
+- Change notifications and event streaming
+- Version control and change history
+- Permission-based access control
 
 ## Setup Instructions
 

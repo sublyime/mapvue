@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { WindowManagerProvider, useWindowManager } from '../contexts/WindowManagerContext';
 import WindowRenderer from './WindowRenderer';
-import Taskbar from './Taskbar';
+import MacOSDock from './MacOSDock';
 import {
   RouteManagerWindow,
   LayerPanelWindow,
@@ -63,8 +63,11 @@ interface WindowizedAppProps {
 // Component to register all windows
 const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
   const windowManager = useWindowManager();
+  const [initialized, setInitialized] = React.useState(false);
 
   useEffect(() => {
+    if (initialized) return;
+
     // Register all available windows
     const windowConfigs = [
       {
@@ -234,7 +237,9 @@ const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
         windowManager.openWindow(config);
       }
     });
-  }, [windowManager, props.map, props.layers, props.activeLayerId, props.currentRoute]);
+
+    setInitialized(true);
+  }, [initialized, windowManager, props]);
 
   return null;
 };
@@ -254,8 +259,8 @@ const WindowizedApp: React.FC<WindowizedAppProps> = (props) => {
         {/* Render all windows */}
         <WindowRenderer />
         
-        {/* Taskbar */}
-        <Taskbar position="bottom" />
+        {/* MacOS-style Dock */}
+        <MacOSDock />
       </div>
     </WindowManagerProvider>
   );

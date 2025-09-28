@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Maximize2, Minimize2, Move, GripVertical } from 'lucide-react';
+import { X, Maximize2, Minimize2, Move } from 'lucide-react';
 
 export interface WindowState {
   id: string;
@@ -24,6 +24,8 @@ interface DraggableWindowProps {
   initialState?: Partial<WindowState>;
   onStateChange?: (state: WindowState) => void;
   onClose?: () => void;
+  onMinimize?: () => void;
+  onRestore?: () => void;
   className?: string;
   headerClassName?: string;
   contentClassName?: string;
@@ -59,6 +61,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
   initialState = {},
   onStateChange,
   onClose,
+  onMinimize,
+  onRestore,
   className = '',
   headerClassName = '',
   contentClassName = '',
@@ -250,7 +254,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   // Handle window controls
   const handleMinimize = () => {
-    setWindowState(prev => ({ ...prev, isMinimized: !prev.isMinimized }));
+    if (windowState.isMinimized) {
+      // Restore window
+      setWindowState(prev => ({ ...prev, isMinimized: false }));
+      onRestore?.();
+    } else {
+      // Minimize window
+      setWindowState(prev => ({ ...prev, isMinimized: true }));
+      onMinimize?.();
+    }
   };
 
   const handleMaximize = () => {
@@ -326,9 +338,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     width: windowState.width,
     height: windowState.height,
     zIndex: windowState.zIndex,
-    transform: windowState.isMinimized ? 'scale(0.1)' : 'scale(1)',
-    transformOrigin: 'top left',
-    opacity: windowState.isMinimized ? 0.8 : 1
+    display: windowState.isMinimized ? 'none' : 'block'
   };
 
   return (
@@ -352,51 +362,59 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {/* Window */}
       <div
         ref={windowRef}
-        className={`fixed bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden transition-all duration-200 ${className}`}
-        style={windowStyle}
+        className={`fixed bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200/50 overflow-hidden transition-all duration-200 ${className}`}
+        style={{
+          ...windowStyle,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)'
+        }}
       >
         {/* Window Header */}
         <div 
-          className={`flex items-center justify-between px-3 py-2 bg-gray-100 border-b border-gray-200 cursor-move select-none ${headerClassName}`}
+          className={`flex items-center justify-between px-4 py-3 bg-gradient-to-b from-gray-50 to-gray-100 border-b border-gray-200/50 cursor-move select-none ${headerClassName}`}
           onMouseDown={handleMouseDown}
         >
-          <div className="flex items-center gap-2">
-            <GripVertical className="w-4 h-4 text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 truncate">
+          <div className="flex items-center gap-3">
+            {/* macOS Traffic Light Buttons */}
+            <div className="flex items-center gap-2">
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="w-3 h-3 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center group transition-colors"
+                  title="Close"
+                >
+                  <X className="w-2 h-2 text-red-800 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              )}
+              
+              <button
+                onClick={handleMinimize}
+                className="w-3 h-3 bg-yellow-400 hover:bg-yellow-500 rounded-full flex items-center justify-center group transition-colors"
+                title={windowState.isMinimized ? "Restore" : "Minimize"}
+              >
+                <Minimize2 className="w-1.5 h-1.5 text-yellow-800 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+              
+              <button
+                onClick={windowState.isDocked ? handleUndock : handleMaximize}
+                className="w-3 h-3 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center group transition-colors"
+                title={windowState.isDocked ? "Undock" : windowState.isMaximized ? "Restore" : "Maximize"}
+              >
+                {windowState.isDocked ? 
+                  <Move className="w-1.5 h-1.5 text-green-800 opacity-0 group-hover:opacity-100 transition-opacity" /> : 
+                  <Maximize2 className="w-1.5 h-1.5 text-green-800 opacity-0 group-hover:opacity-100 transition-opacity" />
+                }
+              </button>
+            </div>
+            
+            {/* Window Title */}
+            <span className="text-sm font-medium text-gray-800 truncate">
               {title}
             </span>
+            
             {windowState.isDocked && (
-              <span className="text-xs text-blue-600 bg-blue-100 px-1 rounded">
+              <span className="text-xs text-blue-600 bg-blue-100/80 px-2 py-0.5 rounded-full">
                 Docked {windowState.dockedSide}
               </span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleMinimize}
-              className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800"
-              title={windowState.isMinimized ? "Restore" : "Minimize"}
-            >
-              <Minimize2 className="w-3 h-3" />
-            </button>
-            
-            <button
-              onClick={windowState.isDocked ? handleUndock : handleMaximize}
-              className="p-1 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-800"
-              title={windowState.isDocked ? "Undock" : windowState.isMaximized ? "Restore" : "Maximize"}
-            >
-              {windowState.isDocked ? <Move className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-            </button>
-            
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="p-1 hover:bg-red-100 rounded text-gray-600 hover:text-red-600"
-                title="Close"
-              >
-                <X className="w-3 h-3" />
-              </button>
             )}
           </div>
         </div>

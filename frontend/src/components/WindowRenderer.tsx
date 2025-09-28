@@ -22,6 +22,8 @@ const WindowRenderer: React.FC = () => {
             initialState={windowState}
             onStateChange={(newState) => windowManager.updateWindowState(windowId, newState)}
             onClose={() => windowManager.closeWindow(windowId)}
+            onMinimize={() => windowManager.minimizeWindow(windowId)}
+            onRestore={() => windowManager.restoreWindow(windowId)}
             minWidth={300}
             minHeight={200}
           >

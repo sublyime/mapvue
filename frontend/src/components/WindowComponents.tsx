@@ -279,6 +279,19 @@ export const DrawingToolsWindow: React.FC<DrawingToolsWindowProps> = ({
           ))}
         </div>
 
+        {/* Clear Tool Button */}
+        <button
+          onClick={() => onToolClick('none')}
+          className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border transition-all ${
+            activeTool === 'none'
+              ? 'bg-gray-100 border-gray-300 text-gray-600'
+              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <MousePointer className="w-4 h-4" />
+          <span className="text-sm font-medium">Clear Tool (Pan Mode)</span>
+        </button>
+
         {/* Active Tool Status */}
         <div className="p-3 bg-blue-50 rounded border border-blue-200">
           <div className="text-sm font-medium text-blue-800">
@@ -376,25 +389,46 @@ export const FileOperationsWindow: React.FC<FileOperationsWindowProps> = ({
   onFileImport = () => {},
   onExportToFormat = () => {}
 }) => {
+  const fileInputId = `file-import-ops-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File selected in FileOperationsWindow:', event.target.files?.[0]?.name);
+    onFileImport(event);
+    // Reset the input value so the same file can be selected again if needed
+    event.target.value = '';
+  };
+
+  const handleExport = (format: string) => {
+    console.log('Export requested for format:', format);
+    onExportToFormat(format);
+  };
   return (
     <div className="h-full p-4 overflow-y-auto">
-      <div className="space-y-4">
+        <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-800">File Operations</h3>
         
-        {/* Import Section */}
+        {/* Instructions */}
+        <div className="p-3 bg-blue-50 rounded border border-blue-200">
+          <div className="text-sm text-blue-800">
+            <strong>How to use:</strong>
+            <br />• Import: Click "Import File" to load GeoJSON/KML/GPX files
+            <br />• Export: Draw features first, then export to desired format
+            <br />• Sample files are available in the project root directory
+          </div>
+        </div>        {/* Import Section */}
         <div className="space-y-3">
           <div className="border-b border-gray-200 pb-2">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Import GIS Data</h4>
             <input
               type="file"
               accept=".geojson,.json,.kml,.gpx"
-              onChange={onFileImport}
+              onChange={handleFileSelect}
               disabled={fileOperations.isImporting}
               className="hidden"
-              id="file-import-window"
+              id={fileInputId}
             />
             <label
-              htmlFor="file-import-window"
+              htmlFor={fileInputId}
               className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-all ${
                 fileOperations.isImporting
                   ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
@@ -436,7 +470,7 @@ export const FileOperationsWindow: React.FC<FileOperationsWindowProps> = ({
             <h4 className="text-sm font-medium text-gray-700 mb-2">Export Data</h4>
             <div className="grid grid-cols-1 gap-2">
               <button
-                onClick={() => onExportToFormat('geojson')}
+                onClick={() => handleExport('geojson')}
                 disabled={fileOperations.isExporting || featureCount.points + featureCount.lines + featureCount.polygons === 0}
                 className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-500"
               >
@@ -445,7 +479,7 @@ export const FileOperationsWindow: React.FC<FileOperationsWindowProps> = ({
               </button>
               
               <button
-                onClick={() => onExportToFormat('kml')}
+                onClick={() => handleExport('kml')}
                 disabled={fileOperations.isExporting || featureCount.points + featureCount.lines + featureCount.polygons === 0}
                 className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100 disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-500"
               >
@@ -454,7 +488,7 @@ export const FileOperationsWindow: React.FC<FileOperationsWindowProps> = ({
               </button>
               
               <button
-                onClick={() => onExportToFormat('gpx')}
+                onClick={() => handleExport('gpx')}
                 disabled={fileOperations.isExporting || featureCount.points + featureCount.lines + featureCount.polygons === 0}
                 className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-500"
               >
