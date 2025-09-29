@@ -9,8 +9,8 @@ import {
   LocationTrackerWindow,
   GPSIntegrationWindow,
   SettingsWindow,
-  ToolsPanelWindow,
   DrawingToolsWindow,
+  GISToolsWindow,
   FileOperationsWindow
 } from './WindowComponents';
 import type { Map } from 'ol';
@@ -20,7 +20,8 @@ interface WindowizedAppProps {
   map: Map | null;
   children?: React.ReactNode;
   // Props for the various windows
-  layers?: any[];
+  layers?: any[];  // GIS layers from backend
+  mapLayers?: any[];  // Base map layers (OpenStreetMap, Satellite, etc.)
   activeLayerId?: string | null;
   onLayerSelect?: (layerId: string) => void;
   onLayerCreate?: (layerData: any) => void;
@@ -58,6 +59,20 @@ interface WindowizedAppProps {
   };
   onFileImport?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onExportToFormat?: (format: string) => void;
+  // GIS Tools props
+  gisTools?: {
+    activeTool: string;
+    measurements: {
+      distance: string | null;
+      area: string | null;
+      coordinates: string | null;
+    };
+  };
+  onMeasureDistance?: () => void;
+  onMeasureArea?: () => void;
+  onCoordinatePicker?: () => void;
+  onClearMeasurements?: () => void;
+  onZoomToExtent?: () => void;
 }
 
 // Component to register all windows
@@ -113,7 +128,7 @@ const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
         id: 'map-layers',
         title: 'Map Layers',
         component: <MapLayerControlWindow 
-          layers={props.layers}
+          layers={props.mapLayers}
           onLayerToggle={props.onLayerToggle}
           onBaseLayerChange={props.onBaseLayerChange}
         />,
@@ -213,10 +228,19 @@ const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
       {
         id: 'tools',
         title: 'GIS Tools',
-        component: <ToolsPanelWindow />,
+        component: <GISToolsWindow 
+          map={props.map}
+          activeTool={props.gisTools?.activeTool || 'none'}
+          measurements={props.gisTools?.measurements || { distance: null, area: null, coordinates: null }}
+          onMeasureDistance={props.onMeasureDistance}
+          onMeasureArea={props.onMeasureArea}
+          onCoordinatePicker={props.onCoordinatePicker}
+          onClearMeasurements={props.onClearMeasurements}
+          onZoomToExtent={props.onZoomToExtent}
+        />,
         initialState: {
           width: 300,
-          height: 400,
+          height: 500,
           x: 300,
           y: 200
         },
@@ -230,13 +254,8 @@ const WindowRegistrar: React.FC<WindowizedAppProps> = (props) => {
       windowManager.registerWindow(config);
     });
 
-    // Auto-open persistent windows on first load
-    const persistentWindows = windowConfigs.filter(config => config.persistent);
-    persistentWindows.forEach(config => {
-      if (!windowManager.isWindowOpen(config.id)) {
-        windowManager.openWindow(config);
-      }
-    });
+    // Don't auto-open any windows on startup - let users open them via dock
+    // This ensures all windows start completely closed/minimized
 
     setInitialized(true);
   }, [initialized, windowManager, props]);

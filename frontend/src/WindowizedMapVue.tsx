@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Map, View } from 'ol';
-import { fromLonLat } from 'ol/proj';
+import { fromLonLat, toLonLat } from 'ol/proj';
 import VectorSource from 'ol/source/Vector';
 import VectorLayer from 'ol/layer/Vector';
 import TileLayer from 'ol/layer/Tile';
@@ -10,6 +10,10 @@ import { Pencil, Square, Minus, MousePointer, Edit } from 'lucide-react';
 import GeoJSON from 'ol/format/GeoJSON';
 import KML from 'ol/format/KML';
 import GPX from 'ol/format/GPX';
+import { getLength, getArea } from 'ol/sphere';
+import { LineString, Polygon } from 'ol/geom';
+import { Style, Stroke, Fill, Circle as CircleStyle } from 'ol/style';
+import Feature from 'ol/Feature';
 
 import WindowizedApp from './components/WindowizedApp';
 import { useLayers, useFeatures } from './hooks/useGIS';
@@ -73,6 +77,16 @@ const WindowizedMapVue: React.FC = () => {
   // Route management state
   const [routes, setRoutes] = useState<any[]>([]);
   const [currentRoute, setCurrentRoute] = useState<any | null>(null);
+
+  // GIS Tools state
+  const [gisTools, setGisTools] = useState({
+    activeTool: 'none',
+    measurements: {
+      distance: null as string | null,
+      area: null as string | null,
+      coordinates: null as string | null
+    }
+  });
 
   const drawingTools: DrawingTool[] = [
     { id: 'point', name: 'Point', icon: <Pencil className="w-4 h-4" />, type: 'Point' },
@@ -403,6 +417,235 @@ const WindowizedMapVue: React.FC = () => {
     setToast({ message: `Route "${route.name}" imported successfully`, type: 'success' });
   };
 
+  // GIS Tools handlers
+  const handleMeasureDistance = () => {
+    if (!mapInstanceRef.current) return;
+    
+    // Remove current interaction
+    if (currentInteractionRef.current) {
+      mapInstanceRef.current.removeInteraction(currentInteractionRef.current);
+      currentInteractionRef.current = null;
+    }
+    
+    setGisTools(prev => ({ ...prev, activeTool: 'distance' }));
+    
+    // Create a temporary source for measurement
+    const measureSource = new VectorSource();
+    const measureLayer = new VectorLayer({
+      source: measureSource,
+      style: new Style({
+        stroke: new Stroke({
+          color: '#ff0000',
+          width: 3,
+          lineDash: [10, 10]
+        })
+      })
+    });
+    
+    mapInstanceRef.current.addLayer(measureLayer);
+    
+    // Create distance measurement draw interaction
+    const drawInteraction = new Draw({
+      source: measureSource,
+      type: 'LineString',
+      style: new Style({
+        stroke: new Stroke({
+          color: '#ff0000',
+          width: 3,
+          lineDash: [10, 10]
+        })
+      })
+    });
+    
+    drawInteraction.on('drawend', (event) => {
+      const feature = event.feature;
+      const geometry = feature.getGeometry() as LineString;
+      if (geometry) {
+        const length = getLength(geometry);
+        const lengthInKm = (length / 1000).toFixed(2);
+        const lengthInMiles = (length * 0.000621371).toFixed(2);
+        
+        setGisTools(prev => ({ 
+          ...prev, 
+          measurements: { 
+            ...prev.measurements, 
+            distance: `${lengthInKm} km (${lengthInMiles} miles)` 
+          }
+        }));
+        
+        // Remove the measurement layer after a delay
+        setTimeout(() => {
+          mapInstanceRef.current?.removeLayer(measureLayer);
+        }, 3000);
+      }
+      
+      mapInstanceRef.current?.removeInteraction(drawInteraction);
+      currentInteractionRef.current = null;
+    });
+    
+    mapInstanceRef.current.addInteraction(drawInteraction);
+    currentInteractionRef.current = drawInteraction;
+  };
+
+  const handleMeasureArea = () => {
+    if (!mapInstanceRef.current) return;
+    
+    // Remove current interaction
+    if (currentInteractionRef.current) {
+      mapInstanceRef.current.removeInteraction(currentInteractionRef.current);
+      currentInteractionRef.current = null;
+    }
+    
+    setGisTools(prev => ({ ...prev, activeTool: 'area' }));
+    
+    // Create a temporary source for measurement
+    const measureSource = new VectorSource();
+    const measureLayer = new VectorLayer({
+      source: measureSource,
+      style: new Style({
+        fill: new Fill({
+          color: 'rgba(255, 0, 0, 0.2)'
+        }),
+        stroke: new Stroke({
+          color: '#ff0000',
+          width: 2,
+          lineDash: [5, 5]
+        })
+      })
+    });
+    
+    mapInstanceRef.current.addLayer(measureLayer);
+    
+    // Create area measurement draw interaction
+    const drawInteraction = new Draw({
+      source: measureSource,
+      type: 'Polygon',
+      style: new Style({
+        fill: new Fill({
+          color: 'rgba(255, 0, 0, 0.2)'
+        }),
+        stroke: new Stroke({
+          color: '#ff0000',
+          width: 2,
+          lineDash: [5, 5]
+        })
+      })
+    });
+    
+    drawInteraction.on('drawend', (event) => {
+      const feature = event.feature;
+      const geometry = feature.getGeometry() as Polygon;
+      if (geometry) {
+        const area = getArea(geometry);
+        const areaInSqKm = (area / 1000000).toFixed(2);
+        const areaInSqMiles = (area * 0.000000386102).toFixed(2);
+        
+        setGisTools(prev => ({ 
+          ...prev, 
+          measurements: { 
+            ...prev.measurements, 
+            area: `${areaInSqKm} km² (${areaInSqMiles} sq miles)` 
+          }
+        }));
+        
+        // Remove the measurement layer after a delay
+        setTimeout(() => {
+          mapInstanceRef.current?.removeLayer(measureLayer);
+        }, 3000);
+      }
+      
+      mapInstanceRef.current?.removeInteraction(drawInteraction);
+      currentInteractionRef.current = null;
+    });
+    
+    mapInstanceRef.current.addInteraction(drawInteraction);
+    currentInteractionRef.current = drawInteraction;
+  };
+
+  const handleCoordinatePicker = () => {
+    if (!mapInstanceRef.current) return;
+    
+    // Remove current interaction
+    if (currentInteractionRef.current) {
+      mapInstanceRef.current.removeInteraction(currentInteractionRef.current);
+      currentInteractionRef.current = null;
+    }
+    
+    setGisTools(prev => ({ ...prev, activeTool: 'coordinates' }));
+    
+    // Add click listener to map
+    const handleMapClick = (event: any) => {
+      const coordinate = event.coordinate;
+      const lonLat = toLonLat(coordinate);
+      const longitude = lonLat[0].toFixed(6);
+      const latitude = lonLat[1].toFixed(6);
+      
+      setGisTools(prev => ({ 
+        ...prev, 
+        measurements: { 
+          ...prev.measurements, 
+          coordinates: `${latitude}, ${longitude}` 
+        }
+      }));
+      
+      // Remove the click listener
+      mapInstanceRef.current?.un('singleclick', handleMapClick);
+      setGisTools(prev => ({ ...prev, activeTool: 'none' }));
+    };
+    
+    mapInstanceRef.current.on('singleclick', handleMapClick);
+  };
+
+  const handleClearMeasurements = () => {
+    setGisTools(prev => ({ 
+      ...prev, 
+      activeTool: 'none',
+      measurements: { distance: null, area: null, coordinates: null }
+    }));
+  };
+
+  const handleZoomToExtent = () => {
+    if (!mapInstanceRef.current) return;
+    
+    // Get all features from all sources
+    let allFeatures: any[] = [];
+    allFeatures = allFeatures.concat(vectorSourceRef.current.getFeatures());
+    Object.values(layerSourcesRef.current).forEach(source => {
+      allFeatures = allFeatures.concat(source.getFeatures());
+    });
+
+    if (allFeatures.length > 0) {
+      // Calculate extent of all features
+      let extent: any = null;
+      allFeatures.forEach(feature => {
+        const featureExtent = feature.getGeometry()?.getExtent();
+        if (featureExtent) {
+          if (!extent) {
+            extent = [...featureExtent];
+          } else {
+            // Extend the extent to include this feature
+            extent[0] = Math.min(extent[0], featureExtent[0]);
+            extent[1] = Math.min(extent[1], featureExtent[1]);
+            extent[2] = Math.max(extent[2], featureExtent[2]);
+            extent[3] = Math.max(extent[3], featureExtent[3]);
+          }
+        }
+      });
+
+      if (extent) {
+        mapInstanceRef.current.getView().fit(extent, { padding: [20, 20, 20, 20] });
+      }
+    } else {
+      // No features, just reset to default view
+      const view = mapInstanceRef.current.getView();
+      view.animate({
+        center: fromLonLat([-74.006, 40.7128]),
+        zoom: 10,
+        duration: 1000
+      });
+    }
+  };
+
   // Layer visibility handlers
   const handleLayerVisibilityToggle = (layerId: string) => {
     // Toggle layer visibility in the layers state (for GIS layers)
@@ -503,7 +746,8 @@ const WindowizedMapVue: React.FC = () => {
   return (
     <WindowizedApp
       map={mapInstanceRef.current}
-      layers={mapLayers}
+      layers={layers}  // Use GIS layers from backend
+      mapLayers={mapLayers}  // Use base map layers for Map Layer Control
       activeLayerId={currentLayerId}
       currentRoute={currentRoute}
       // Route management props
@@ -524,6 +768,13 @@ const WindowizedMapVue: React.FC = () => {
       fileOperations={fileOperations}
       onFileImport={handleFileImport}
       onExportToFormat={handleExportToFormat}
+      // GIS Tools props
+      gisTools={gisTools}
+      onMeasureDistance={handleMeasureDistance}
+      onMeasureArea={handleMeasureArea}
+      onCoordinatePicker={handleCoordinatePicker}
+      onClearMeasurements={handleClearMeasurements}
+      onZoomToExtent={handleZoomToExtent}
       // Layer management props
       onLayerSelect={(layerId: string) => setCurrentLayerId(layerId)}
       onLayerCreate={createLayer}

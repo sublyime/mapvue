@@ -4,7 +4,7 @@ import LocationTracker from './LocationTracker';
 import GPSIntegration from './GPSIntegration';
 import { LayerPanel } from './LayerPanel';
 import MapLayerControl from './MapLayerControl';
-import { Pencil, Square, Minus, MousePointer, Edit, Upload, Download, FileText, Save } from 'lucide-react';
+import { Pencil, Square, Minus, MousePointer, Edit, Upload, Download, FileText, Save, Ruler, Crosshair, RotateCcw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import type { Map } from 'ol';
 import type { RouteData } from './RouteManager';
 
@@ -176,52 +176,199 @@ export const SettingsWindow: React.FC = () => {
   );
 };
 
-// Tools Panel Window
-export const ToolsPanelWindow: React.FC = () => {
+// GIS Tools Window - Professional GIS utilities
+interface GISToolsWindowProps {
+  map?: Map | null;
+  onMeasureDistance?: () => void;
+  onMeasureArea?: () => void;
+  onCoordinatePicker?: () => void;
+  onClearMeasurements?: () => void;
+  onZoomToExtent?: () => void;
+  activeTool?: string;
+  measurements?: {
+    distance: string | null;
+    area: string | null;
+    coordinates: string | null;
+  };
+}
+
+export const GISToolsWindow: React.FC<GISToolsWindowProps> = ({
+  map,
+  onMeasureDistance = () => {},
+  onMeasureArea = () => {},
+  onCoordinatePicker = () => {},
+  onClearMeasurements = () => {},
+  onZoomToExtent = () => {},
+  activeTool = 'none',
+  measurements = { distance: null, area: null, coordinates: null }
+}) => {
+  const handleZoomIn = () => {
+    if (!map) return;
+    const view = map.getView();
+    const zoom = view.getZoom();
+    if (zoom !== undefined) {
+      view.setZoom(zoom + 1);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (!map) return;
+    const view = map.getView();
+    const zoom = view.getZoom();
+    if (zoom !== undefined) {
+      view.setZoom(zoom - 1);
+    }
+  };
+
+  const handleResetView = () => {
+    if (!map) return;
+    const view = map.getView();
+    view.setCenter([0, 0]);
+    view.setZoom(2);
+  };
+
   return (
-    <div className="h-full p-4">
+    <div className="h-full p-4 overflow-y-auto">
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-800">GIS Tools</h3>
         
-        <div className="grid grid-cols-2 gap-3">
-          <button className="p-3 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
-            Measure Distance
-          </button>
-          <button className="p-3 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">
-            Measure Area
-          </button>
-          <button className="p-3 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 text-sm">
-            Draw Polygon
-          </button>
-          <button className="p-3 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 text-sm">
-            Add Marker
-          </button>
-          <button className="p-3 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
-            Draw Line
-          </button>
-          <button className="p-3 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 text-sm">
-            Add Text
-          </button>
+        {/* Measurement Tools */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">Measurement Tools</h4>
+          <div className="grid grid-cols-1 gap-2">
+            <button
+              onClick={onMeasureDistance}
+              className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-sm ${
+                activeTool === 'measure-distance'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Ruler className="w-4 h-4" />
+              <span className="font-medium">Measure Distance</span>
+            </button>
+            
+            <button
+              onClick={onMeasureArea}
+              className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-sm ${
+                activeTool === 'measure-area'
+                  ? 'bg-green-100 border-green-300 text-green-700'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Square className="w-4 h-4" />
+              <span className="font-medium">Measure Area</span>
+            </button>
+            
+            <button
+              onClick={onCoordinatePicker}
+              className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-sm ${
+                activeTool === 'coordinate-picker'
+                  ? 'bg-purple-100 border-purple-300 text-purple-700'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Crosshair className="w-4 h-4" />
+              <span className="font-medium">Pick Coordinates</span>
+            </button>
+          </div>
         </div>
 
-        <div className="pt-4 border-t border-gray-200">
-          <h4 className="font-medium text-gray-700 mb-2">Quick Actions</h4>
+        {/* Measurement Results */}
+        {(measurements.distance || measurements.area || measurements.coordinates) && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">Results</h4>
+            <div className="space-y-2">
+              {measurements.distance && (
+                <div className="p-2 bg-blue-50 rounded border border-blue-200">
+                  <div className="text-xs font-medium text-blue-800">Distance:</div>
+                  <div className="text-sm text-blue-700">{measurements.distance}</div>
+                </div>
+              )}
+              {measurements.area && (
+                <div className="p-2 bg-green-50 rounded border border-green-200">
+                  <div className="text-xs font-medium text-green-800">Area:</div>
+                  <div className="text-sm text-green-700">{measurements.area}</div>
+                </div>
+              )}
+              {measurements.coordinates && (
+                <div className="p-2 bg-purple-50 rounded border border-purple-200">
+                  <div className="text-xs font-medium text-purple-800">Coordinates:</div>
+                  <div className="text-sm text-purple-700">{measurements.coordinates}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Map Navigation */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">Map Navigation</h4>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleZoomIn}
+              className="flex items-center justify-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-sm"
+            >
+              <ZoomIn className="w-4 h-4" />
+              Zoom In
+            </button>
+            
+            <button
+              onClick={handleZoomOut}
+              className="flex items-center justify-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-sm"
+            >
+              <ZoomOut className="w-4 h-4" />
+              Zoom Out
+            </button>
+            
+            <button
+              onClick={onZoomToExtent}
+              className="flex items-center justify-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-sm"
+            >
+              <Maximize2 className="w-4 h-4" />
+              Fit All
+            </button>
+            
+            <button
+              onClick={handleResetView}
+              className="flex items-center justify-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 text-sm"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-1">Quick Actions</h4>
           <div className="space-y-2">
-            <button className="w-full p-2 text-left bg-gray-100 rounded hover:bg-gray-200 text-sm">
-              Clear All Drawings
+            <button
+              onClick={onClearMeasurements}
+              className="w-full flex items-center gap-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded hover:bg-red-100 text-sm"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Clear Measurements
             </button>
-            <button className="w-full p-2 text-left bg-gray-100 rounded hover:bg-gray-200 text-sm">
-              Export to KML
-            </button>
-            <button className="w-full p-2 text-left bg-gray-100 rounded hover:bg-gray-200 text-sm">
-              Import GPS File
-            </button>
+          </div>
+        </div>
+
+        {/* Tool Instructions */}
+        <div className="p-3 bg-blue-50 rounded border border-blue-200">
+          <div className="text-xs font-medium text-blue-800 mb-1">How to use:</div>
+          <div className="text-xs text-blue-700 space-y-1">
+            <div>• Distance: Click to start, click again to finish measuring</div>
+            <div>• Area: Click to draw polygon, double-click to complete</div>
+            <div>• Coordinates: Click anywhere on the map to get coordinates</div>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+// Legacy alias for backward compatibility
+export const ToolsPanelWindow = GISToolsWindow;
 
 // Drawing Tools Window
 interface DrawingToolsWindowProps {

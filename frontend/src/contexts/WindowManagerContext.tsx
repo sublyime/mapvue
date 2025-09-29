@@ -49,7 +49,7 @@ const defaultWindowState: WindowState = {
   y: 100,
   width: 400,
   height: 300,
-  isMinimized: false,
+  isMinimized: false,  // Windows should open normally when user clicks dock icon
   isMaximized: false,
   isDocked: false,
   dockedSide: null,

@@ -111,11 +111,25 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [hoverDockZone, setHoverDockZone] = useState<'left' | 'right' | null>(null);
 
   const windowRef = useRef<HTMLDivElement>(null);
+  const initialSyncRef = useRef(false);
+
+  // Sync initialState with local state on mount and when initialState changes significantly
+  useEffect(() => {
+    if (initialState && !initialSyncRef.current) {
+      setWindowState(prev => ({
+        ...prev,
+        ...initialState,
+        id,
+        title
+      }));
+      initialSyncRef.current = true;
+    }
+  }, [initialState, id, title]);
 
   // Update parent when state changes
   useEffect(() => {
     onStateChange?.(windowState);
-  }, [windowState, onStateChange]);
+  }, [windowState]); // Remove onStateChange from dependencies to prevent infinite loop
 
   // Handle window dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
